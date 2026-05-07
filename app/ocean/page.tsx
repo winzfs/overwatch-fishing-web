@@ -33,6 +33,7 @@ function OceanGame() {
         resultText!: Phaser.GameObjects.Text;
 
         isFishing = false;
+        isResolving = false;
         pointerDirection = 1;
         selectedFish = pickFish(regionId);
         gold = 3000;
@@ -228,6 +229,7 @@ function OceanGame() {
 
         onFish = () => {
           if (this.isFishing) {
+            if (this.isResolving) return;
             this.tryCatch();
             return;
           }
@@ -244,7 +246,9 @@ function OceanGame() {
         };
 
         startFishingBattle() {
+          if (this.isFishing || this.isResolving) return;
           this.isFishing = true;
+          this.isResolving = false;
           this.move = { x: 0, y: 0 };
           this.selectedFish = pickFish(regionId);
 
@@ -265,6 +269,9 @@ function OceanGame() {
         }
 
         tryCatch() {
+          if (this.isResolving) return;
+          this.isResolving = true;
+
           const center = this.pointer.x;
           const left = this.hitZone.x - this.hitZone.width / 2;
           const right = this.hitZone.x + this.hitZone.width / 2;
@@ -324,6 +331,7 @@ function OceanGame() {
           this.time.delayedCall(1500, () => {
             this.fishingPanel.setVisible(false);
             this.isFishing = false;
+            this.isResolving = false;
             this.resultText.setText("");
           });
         }
