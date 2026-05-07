@@ -98,6 +98,7 @@ function OceanGame() {
         eventText: any;
 
         move = { x: 0, y: 0 };
+        keyboardActive = false;
         keys: any = {};
         canFish = false;
         targetFish: any = null;
@@ -784,7 +785,13 @@ function OceanGame() {
             (this.keys.down?.isDown || this.keys.down2?.isDown ? 1 : 0);
 
           if (!this.isFishing) {
-            this.move = { x, y };
+            if (x !== 0 || y !== 0) {
+              this.keyboardActive = true;
+              this.move = { x, y };
+            } else if (this.keyboardActive) {
+              this.keyboardActive = false;
+              this.move = { x: 0, y: 0 };
+            }
           }
 
           if (Phaser.Input.Keyboard.JustDown(this.keys.fish) || Phaser.Input.Keyboard.JustDown(this.keys.fish2)) {
