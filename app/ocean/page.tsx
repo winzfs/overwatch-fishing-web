@@ -525,8 +525,11 @@ function OceanGame() {
         }
 
         onMove = (event: Event) => {
-          if (this.isFishing) return;
           const custom = event as CustomEvent<{ x: number; y: number }>;
+
+          // 모바일에서는 낚시 전투 2단계에서도 방향 입력이 필요함.
+          // 배 이동은 update()에서 isFishing일 때 막히므로,
+          // 여기서는 move 값을 항상 갱신해도 배가 움직이지 않음.
           this.move = custom.detail;
         };
 
