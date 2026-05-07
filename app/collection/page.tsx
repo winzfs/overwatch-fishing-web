@@ -5,7 +5,7 @@ export default function CollectionPage() {
     <main className="min-h-screen bg-slate-950 p-5 text-white">
       <a href="/" className="rounded-xl bg-white/10 px-4 py-2 font-bold">← 홈</a>
       <h1 className="mt-8 text-4xl font-black">📖 물고기 도감</h1>
-      <p className="mt-3 text-slate-300">현재는 전체 어종 미리보기입니다. 다음 단계에서 저장 도감으로 바뀝니다.</p>
+      <p className="mt-3 text-slate-300">다음 단계에서 실제 잡은 물고기 저장 도감으로 연결합니다.</p>
       <div className="mt-8 grid gap-3">
         {fishes.map((fish) => {
           const grade = gradeInfo[fish.grade];

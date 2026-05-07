@@ -17,7 +17,7 @@ export default function RegionsPage() {
         </div>
 
         <h1 className="text-4xl font-black tracking-tight sm:text-5xl">🗺️ 낚시터 선택</h1>
-        <p className="mt-3 text-slate-300">지역을 선택하면 실제 바다 맵으로 이동합니다.</p>
+        <p className="mt-3 text-slate-300">오픈월드가 아니라 지역별 낚시터로 입장합니다.</p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {regions.map((region) => (
@@ -43,7 +43,7 @@ export default function RegionsPage() {
               <p className="mt-4 leading-6 text-slate-200">{region.desc}</p>
 
               <div className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-center font-black">
-                🚤 이 지역 바다로 출항
+                🎣 이 지역에서 낚시하기
               </div>
             </button>
           ))}

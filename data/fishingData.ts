@@ -13,6 +13,7 @@ export type Region = {
   desc: string;
   level: number;
   theme: string;
+  bg: number;
 };
 
 export type Fish = {
@@ -43,7 +44,7 @@ export const gradeInfo: Record<
     color: "#d4d4d8",
     weight: 1000,
     speed: 5,
-    zone: 0.23,
+    zone: 0.24,
     texture: "fish_common",
     burst: "burst_rare",
   },
@@ -53,7 +54,7 @@ export const gradeInfo: Record<
     color: "#7dd3fc",
     weight: 300,
     speed: 6,
-    zone: 0.19,
+    zone: 0.2,
     texture: "fish_rare",
     burst: "burst_rare",
   },
@@ -63,7 +64,7 @@ export const gradeInfo: Record<
     color: "#c084fc",
     weight: 80,
     speed: 7,
-    zone: 0.16,
+    zone: 0.17,
     texture: "fish_epic",
     burst: "burst_epic",
   },
@@ -73,7 +74,7 @@ export const gradeInfo: Record<
     color: "#fbbf24",
     weight: 20,
     speed: 8,
-    zone: 0.13,
+    zone: 0.14,
     texture: "fish_legend",
     burst: "burst_legend",
   },
@@ -83,7 +84,7 @@ export const gradeInfo: Record<
     color: "#fb7185",
     weight: 5,
     speed: 9,
-    zone: 0.11,
+    zone: 0.12,
     texture: "fish_mythic",
     burst: "burst_mythic",
   },
@@ -93,7 +94,7 @@ export const gradeInfo: Record<
     color: "#a5f3fc",
     weight: 1,
     speed: 10,
-    zone: 0.095,
+    zone: 0.1,
     texture: "fish_transcend",
     burst: "burst_transcend",
   },
@@ -107,6 +108,7 @@ export const regions: Region[] = [
     desc: "맑은 지중해 샘물. 초보 낚시꾼의 첫 낚시터입니다.",
     level: 1,
     theme: "from-cyan-500/30 to-blue-900/30",
+    bg: 0x075985,
   },
   {
     id: "hanamura",
@@ -115,6 +117,7 @@ export const regions: Region[] = [
     desc: "벚꽃이 흩날리는 신성한 연못. 희귀 어종이 등장합니다.",
     level: 5,
     theme: "from-pink-500/30 to-rose-900/30",
+    bg: 0x831843,
   },
   {
     id: "route66",
@@ -123,6 +126,7 @@ export const regions: Region[] = [
     desc: "사막 한가운데 솟은 오아시스. 석양 물고기가 출몰합니다.",
     level: 10,
     theme: "from-orange-500/30 to-yellow-900/30",
+    bg: 0x78350f,
   },
   {
     id: "busan",
@@ -131,6 +135,7 @@ export const regions: Region[] = [
     desc: "디바의 고향 부산. 활기찬 파도 아래 보물이 숨어 있습니다.",
     level: 15,
     theme: "from-sky-500/30 to-cyan-900/30",
+    bg: 0x0e7490,
   },
   {
     id: "numbani",
@@ -139,6 +144,7 @@ export const regions: Region[] = [
     desc: "옴닉과 인간이 함께하는 도시의 강. 독특한 생명체가 삽니다.",
     level: 20,
     theme: "from-green-500/30 to-emerald-900/30",
+    bg: 0x166534,
   },
   {
     id: "antarctica",
@@ -147,6 +153,7 @@ export const regions: Region[] = [
     desc: "빙하 아래 신비한 심해어가 잠든 극지 낚시터입니다.",
     level: 25,
     theme: "from-blue-200/30 to-sky-900/30",
+    bg: 0x1e3a8a,
   },
   {
     id: "horizon",
@@ -155,6 +162,7 @@ export const regions: Region[] = [
     desc: "저중력 수경 구역. 이상한 변이 어종이 서식합니다.",
     level: 30,
     theme: "from-indigo-500/30 to-violet-950/30",
+    bg: 0x312e81,
   },
   {
     id: "null_sector",
@@ -163,6 +171,7 @@ export const regions: Region[] = [
     desc: "어둠 속에서 초월적 존재들이 기다리는 최종 낚시터입니다.",
     level: 35,
     theme: "from-zinc-700/40 to-black",
+    bg: 0x020617,
   },
 ];
 
