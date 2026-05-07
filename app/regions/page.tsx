@@ -1,55 +1,73 @@
+"use client";
+
 const regions = [
-      {
-          name: "하나무라 항구",
-              desc: "잔잔한 바다와 초보자용 물고기",
-                  level: 1,
-                    },
-                      {
-                          name: "부산 해안",
-                              desc: "희귀 어종이 출몰하는 해안",
-                                  level: 5,
-                                    },
-                                      {
-                                          name: "쓰레기촌 하수구",
-                                              desc: "수상한 변종 물고기들이 서식",
-                                                  level: 10,
-                                                    },
-                                                      {
-                                                          name: "남극 연구기지",
-                                                              desc: "얼어붙은 바다의 전설 어종",
-                                                                  level: 15,
-                                                                    },
-                                                                    ];
+  { id: "ilios", emoji: "⛲", name: "일리오스 우물", desc: "초보 낚시꾼의 첫 낚시터", level: 1, color: "from-cyan-500/30 to-blue-900/30" },
+    { id: "hanamura", emoji: "🌸", name: "하나무라 정원 연못", desc: "벚꽃이 흩날리는 신성한 연못", level: 5, color: "from-pink-500/30 to-rose-900/30" },
+      { id: "route66", emoji: "🌵", name: "66번 국도 오아시스", desc: "석양 물고기가 출몰하는 사막 오아시스", level: 10, color: "from-orange-500/30 to-yellow-900/30" },
+        { id: "busan", emoji: "🏖️", name: "부산 해변", desc: "파도 아래 보물이 숨어 있는 해변", level: 15, color: "from-sky-500/30 to-cyan-900/30" },
+          { id: "numbani", emoji: "🌿", name: "눔바니 강 하류", desc: "독특한 생명체가 사는 도시의 강", level: 20, color: "from-green-500/30 to-emerald-900/30" },
+            { id: "antarctica", emoji: "❄️", name: "아나타크틱 연구소", desc: "빙하 아래 심해어가 잠든 극지 낚시터", level: 25, color: "from-blue-200/30 to-sky-900/30" },
+              { id: "horizon", emoji: "🌙", name: "호라이즌 달 식민지", desc: "저중력 수경 구역의 변이 어종", level: 30, color: "from-indigo-500/30 to-violet-950/30" },
+                { id: "null_sector", emoji: "🌑", name: "널 섹터 심연", desc: "초월적 존재들이 기다리는 최종 낚시터", level: 35, color: "from-zinc-700/40 to-black" },
+                ];
 
-                                                                    export default function RegionsPage() {
-                                                                      return (
-                                                                          <main className="min-h-screen bg-slate-950 text-white p-5">
-                                                                                <h1 className="mb-8 text-4xl font-black">
-                                                                                        🗺️ 지역 선택
-                                                                                              </h1>
+                export default function RegionsPage() {
+                  function goFishing(regionId: string) {
+                      window.location.href = `/fishing?region=${regionId}`;
+                        }
 
-                                                                                                    <div className="grid gap-4">
-                                                                                                            {regions.map((region) => (
-                                                                                                                      <button
-                                                                                                                                  key={region.name}
-                                                                                                                                              className="rounded-3xl border border-white/10 bg-white/5 p-5 text-left transition hover:bg-cyan-400/10"
-                                                                                                                                                        >
-                                                                                                                                                                    <div className="flex items-center justify-between">
-                                                                                                                                                                                  <h2 className="text-2xl font-black">
-                                                                                                                                                                                                  {region.name}
-                                                                                                                                                                                                                </h2>
+                          return (
+                              <main className="min-h-screen bg-slate-950 px-5 py-6 text-white">
+                                    <div className="mx-auto max-w-5xl">
+                                            <div className="mb-6 flex items-center justify-between">
+                                                      <button
+                                                                  onClick={() => (window.location.href = "/")}
+                                                                              className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+                                                                                        >
+                                                                                                    ← 홈
+                                                                                                              </button>
 
-                                                                                                                                                                                                                              <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-sm text-cyan-300">
-                                                                                                                                                                                                                                              Lv.{region.level}+
-                                                                                                                                                                                                                                                            </span>
-                                                                                                                                                                                                                                                                        </div>
+                                                                                                                        <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-bold text-cyan-200">
+                                                                                                                                    지역 선택
+                                                                                                                                              </div>
+                                                                                                                                                      </div>
 
-                                                                                                                                                                                                                                                                                    <p className="mt-2 text-slate-300">
-                                                                                                                                                                                                                                                                                                  {region.desc}
-                                                                                                                                                                                                                                                                                                              </p>
-                                                                                                                                                                                                                                                                                                                        </button>
-                                                                                                                                                                                                                                                                                                                                ))}
-                                                                                                                                                                                                                                                                                                                                      </div>
-                                                                                                                                                                                                                                                                                                                                          </main>
-                                                                                                                                                                                                                                                                                                                                            );
-                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                              <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
+                                                                                                                                                                        🗺️ 낚시터 선택
+                                                                                                                                                                                </h1>
+
+                                                                                                                                                                                        <p className="mt-3 text-slate-300">
+                                                                                                                                                                                                  지역을 선택하고 전설의 물고기를 찾아 떠나세요.
+                                                                                                                                                                                                          </p>
+
+                                                                                                                                                                                                                  <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                                                                                                                                                                                                                            {regions.map((region) => (
+                                                                                                                                                                                                                                        <button
+                                                                                                                                                                                                                                                      key={region.id}
+                                                                                                                                                                                                                                                                    type="button"
+                                                                                                                                                                                                                                                                                  onClick={() => goFishing(region.id)}
+                                                                                                                                                                                                                                                                                                className={`w-full rounded-3xl border border-white/10 bg-gradient-to-br ${region.color} p-5 text-left shadow-xl transition active:scale-[0.98]`}
+                                                                                                                                                                                                                                                                                                            >
+                                                                                                                                                                                                                                                                                                                          <div className="flex items-start justify-between gap-3">
+                                                                                                                                                                                                                                                                                                                                          <div>
+                                                                                                                                                                                                                                                                                                                                                            <div className="text-4xl">{region.emoji}</div>
+                                                                                                                                                                                                                                                                                                                                                                              <h2 className="mt-3 text-2xl font-black">{region.name}</h2>
+                                                                                                                                                                                                                                                                                                                                                                                              </div>
+
+                                                                                                                                                                                                                                                                                                                                                                                                              <span className="rounded-full bg-black/30 px-3 py-1 text-sm font-bold text-cyan-200">
+                                                                                                                                                                                                                                                                                                                                                                                                                                Lv.{region.level}+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                              </div>
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <p className="mt-4 leading-6 text-slate-200">{region.desc}</p>
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          <div className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-center font-black">
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          🎣 이 지역에서 낚시하기
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </button>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ))}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      </div>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                </main>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  );
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
