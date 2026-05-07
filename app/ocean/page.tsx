@@ -24,6 +24,86 @@ type SaveData = {
 
 const SAVE_KEY = "overwatch-fishing-save-v1";
 
+type DailySeaEvent = {
+  id: string;
+  name: string;
+  desc: string;
+  emoji: string;
+  goldMultiplier: number;
+  expMultiplier: number;
+  rareBonus: number;
+  bgTint: number;
+};
+
+const DAILY_EVENTS: DailySeaEvent[] = [
+  {
+    id: "calm",
+    name: "잔잔한 바다",
+    desc: "평범하지만 안정적인 낚시 날입니다.",
+    emoji: "🌤️",
+    goldMultiplier: 1,
+    expMultiplier: 1,
+    rareBonus: 0,
+    bgTint: 0x000000,
+  },
+  {
+    id: "gold_tide",
+    name: "황금 물결",
+    desc: "포획 보상 골드가 30% 증가합니다.",
+    emoji: "🌅",
+    goldMultiplier: 1.3,
+    expMultiplier: 1,
+    rareBonus: 0,
+    bgTint: 0x78350f,
+  },
+  {
+    id: "school",
+    name: "물고기 떼 출몰",
+    desc: "물고기 수가 증가하고 희귀 실루엣이 조금 더 자주 보입니다.",
+    emoji: "🐟",
+    goldMultiplier: 1,
+    expMultiplier: 1.1,
+    rareBonus: 1,
+    bgTint: 0x075985,
+  },
+  {
+    id: "storm",
+    name: "폭풍 전야",
+    desc: "낚시는 더 긴장되지만 경험치가 40% 증가합니다.",
+    emoji: "⛈️",
+    goldMultiplier: 1,
+    expMultiplier: 1.4,
+    rareBonus: 1,
+    bgTint: 0x1e1b4b,
+  },
+  {
+    id: "legend_scent",
+    name: "전설의 기척",
+    desc: "전설 이상 실루엣 등장률이 증가합니다.",
+    emoji: "✨",
+    goldMultiplier: 1.15,
+    expMultiplier: 1.15,
+    rareBonus: 2,
+    bgTint: 0x581c87,
+  },
+];
+
+function hashString(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getDailySeaEvent(regionId: string): DailySeaEvent {
+  const key = `${new Date().toISOString().slice(0, 10)}-${regionId}`;
+  const index = hashString(key) % DAILY_EVENTS.length;
+  return DAILY_EVENTS[index];
+}
+
+
 function defaultSave(): SaveData {
   return {
     gold: 3000,
@@ -124,6 +204,7 @@ function OceanGame() {
         battleTimer = 0;
         requiredDirection = "LEFT";
         selectedFish = pickFish(regionId);
+        dailyEvent: DailySeaEvent = getDailySeaEvent(regionId);
         fishSize = { cm: 0, kg: 0, sizeRank: "중형", multiplier: 1 };
 
         saveData: SaveData = defaultSave();
@@ -207,6 +288,22 @@ function OceanGame() {
               padding: { x: 10, y: 8 },
             })
             .setDepth(80);
+
+          this.add
+            .text(16, 124, `${this.dailyEvent.emoji} ${this.dailyEvent.name}\n${this.dailyEvent.desc}`, {
+              fontSize: "14px",
+              color: "#e0f2fe",
+              fontStyle: "bold",
+              backgroundColor: "rgba(0,0,0,0.45)",
+              padding: { x: 10, y: 8 },
+              wordWrap: { width: 260 },
+            })
+            .setDepth(80);
+
+          if (this.dailyEvent.id !== "calm") {
+            const overlay = this.add.rectangle(width / 2, height / 2, width, height, this.dailyEvent.bgTint, 0.18);
+            overlay.setDepth(2);
+          }
 
           this.hudText = this.add
             .text(16, 72, "", {
@@ -327,11 +424,21 @@ function OceanGame() {
           if (radar >= 2) textures.push("fish_legend");
           if (radar >= 3) textures.push("fish_mythic");
 
+          if (this.dailyEvent.rareBonus >= 1) {
+            textures.push("fish_rare", "fish_epic");
+          }
+
+          if (this.dailyEvent.rareBonus >= 2) {
+            textures.push("fish_legend", "fish_mythic");
+          }
+
           if (regionId === "null_sector" || regionId === "horizon" || regionId === "antarctica") {
             textures.push("fish_mythic", "fish_transcend");
           }
 
-          for (let i = 0; i < 15; i++) {
+          const fishCount = this.dailyEvent.id === "school" ? 21 : 15;
+
+          for (let i = 0; i < fishCount; i++) {
             this.spawnOneFish(Phaser.Utils.Array.GetRandom(textures));
           }
         }
@@ -469,7 +576,7 @@ function OceanGame() {
         refreshHud() {
           const { rod, engine, radar } = this.saveData.upgrades;
           this.hudText.setText(
-            `💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}\n🎣 Lv.${rod}  🚤 Lv.${engine}  📡 Lv.${radar}\nPC: WASD/방향키 이동, Space 낚시`
+            `💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}\n🎣 Lv.${rod}  🚤 Lv.${engine}  📡 Lv.${radar}\n${this.dailyEvent.emoji} ${this.dailyEvent.name}`
           );
         }
 
@@ -566,6 +673,7 @@ function OceanGame() {
           this.battleTimer = 0;
           this.move = { x: 0, y: 0 };
           this.selectedFish = pickFish(regionId);
+        dailyEvent: DailySeaEvent = getDailySeaEvent(regionId);
           this.fishSize = this.makeFishSize(this.selectedFish.grade);
 
           const grade = gradeInfo[this.selectedFish.grade];
@@ -695,8 +803,12 @@ function OceanGame() {
           if (success) {
             const qualityBonus = quality === "perfect" ? 1.35 : 1;
             const sizeBonus = this.fishSize.multiplier;
-            const goldGain = Math.floor(this.selectedFish.price * qualityBonus * sizeBonus);
-            const expGain = Math.floor(this.selectedFish.exp * qualityBonus * Math.max(1, sizeBonus * 0.7));
+            const goldGain = Math.floor(
+              this.selectedFish.price * qualityBonus * sizeBonus * this.dailyEvent.goldMultiplier
+            );
+            const expGain = Math.floor(
+              this.selectedFish.exp * qualityBonus * Math.max(1, sizeBonus * 0.7) * this.dailyEvent.expMultiplier
+            );
 
             this.gold += goldGain;
             this.exp += expGain;
@@ -744,7 +856,7 @@ function OceanGame() {
             this.resultBadge.setVisible(true);
             this.battleText.setColor(quality === "perfect" ? "#fde047" : "#86efac");
             this.battleText.setText(
-              `${grade.emoji} ${this.selectedFish.name}\n${this.fishSize.sizeRank} · ${this.fishSize.cm}cm · ${this.fishSize.kg}kg\n+${goldGain.toLocaleString()}G / +${expGain}EXP${isRecord ? "\n🏆 신기록!" : ""}`
+              `${grade.emoji} ${this.selectedFish.name}\n${this.fishSize.sizeRank} · ${this.fishSize.cm}cm · ${this.fishSize.kg}kg\n+${goldGain.toLocaleString()}G / +${expGain}EXP${isRecord ? "\n🏆 신기록!" : ""}${this.dailyEvent.id !== "calm" ? "\n" + this.dailyEvent.emoji + " 이벤트 보너스 적용" : ""}`
             );
 
             if (this.fishSize.sizeRank === "괴물급") {
