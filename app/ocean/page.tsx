@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { gradeInfo, pickFish, regions } from "../../data/fishingData";
 
 function OceanGame() {
   const gameRef = useRef<HTMLDivElement>(null);
@@ -11,384 +10,164 @@ function OceanGame() {
 
   useEffect(() => {
     let game: any;
-    const currentRegion = regions.find((r) => r.id === regionId) || regions[0];
 
     async function startGame() {
       const Phaser = (await import("phaser")).default;
 
       class OceanScene extends Phaser.Scene {
-        boat!: Phaser.GameObjects.Image;
-        fishes: Phaser.GameObjects.Image[] = [];
-        fishText!: Phaser.GameObjects.Text;
-        hudText!: Phaser.GameObjects.Text;
+        boat!: Phaser.Physics.Arcade.Image;
+        fishes: Phaser.Physics.Arcade.Image[] = [];
+
         move = { x: 0, y: 0 };
-        canFish = false;
-        targetFish: Phaser.GameObjects.Image | null = null;
-
-        fishingPanel!: Phaser.GameObjects.Container;
-        timingBar!: Phaser.GameObjects.Rectangle;
-        hitZone!: Phaser.GameObjects.Rectangle;
-        pointer!: Phaser.GameObjects.Rectangle;
-        fishNameText!: Phaser.GameObjects.Text;
-        resultText!: Phaser.GameObjects.Text;
-
-        isFishing = false;
-        isResolving = false;
-        pointerDirection = 1;
-        selectedFish = pickFish(regionId);
-        gold = 3000;
-        exp = 0;
-        caught = 0;
-
-        constructor() {
-          super("OceanScene");
-        }
 
         preload() {
           this.load.image("ocean", "/assets/backgrounds/ocean_tile.png");
           this.load.image("boat", "/assets/sprites/boat_top.png");
           this.load.image("fish_common", "/assets/sprites/fish_shadow_common.png");
           this.load.image("fish_rare", "/assets/sprites/fish_shadow_rare.png");
-          this.load.image("fish_epic", "/assets/sprites/fish_shadow_epic.png");
-          this.load.image("fish_legend", "/assets/sprites/fish_shadow_legend.png");
-          this.load.image("fish_mythic", "/assets/sprites/fish_shadow_mythic.png");
-          this.load.image("fish_transcend", "/assets/sprites/fish_shadow_transcend.png");
-          this.load.image("burst_rare", "/assets/effects/burst_rare.png");
-          this.load.image("burst_epic", "/assets/effects/burst_epic.png");
-          this.load.image("burst_legend", "/assets/effects/burst_legend.png");
-          this.load.image("burst_mythic", "/assets/effects/burst_mythic.png");
-          this.load.image("burst_transcend", "/assets/effects/burst_transcend.png");
+          this.load.image("island", "/assets/effects/burst_legend.png");
         }
 
         create() {
-          const width = this.scale.width;
-          const height = this.scale.height;
+          const WORLD_WIDTH = 4200;
+          const WORLD_HEIGHT = 4200;
 
-          for (let x = 0; x < width + 512; x += 512) {
-            for (let y = 0; y < height + 512; y += 512) {
+          for (let x = 0; x < WORLD_WIDTH; x += 512) {
+            for (let y = 0; y < WORLD_HEIGHT; y += 512) {
               this.add.image(x, y, "ocean").setOrigin(0);
             }
           }
 
-          this.spawnFishByTexture("fish_common", 8);
-          this.spawnFishByTexture("fish_rare", 4);
-          this.spawnFishByTexture("fish_epic", 2);
-          this.spawnFishByTexture("fish_legend", 1);
-          this.spawnFishByTexture("fish_mythic", 1);
+          this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-          this.boat = this.add.image(width / 2, height / 2, "boat");
-          this.boat.setScale(0.34);
+          this.addIsland(700, 900);
+          this.addIsland(1900, 1200);
+          this.addIsland(3000, 2400);
+          this.addIsland(1200, 3200);
+
+          this.spawnFish("fish_common", 24);
+          this.spawnFish("fish_rare", 10);
+
+          this.boat = this.physics.add.image(
+            WORLD_WIDTH / 2,
+            WORLD_HEIGHT / 2,
+            "boat"
+          );
+
+          this.boat.setScale(0.35);
+          this.boat.setCollideWorldBounds(true);
           this.boat.setDepth(20);
 
-          this.add
-            .text(16, 18, `${currentRegion.emoji} ${currentRegion.name}`, {
-              fontSize: "22px",
-              color: "#ffffff",
-              fontStyle: "bold",
-              backgroundColor: "rgba(0,0,0,0.35)",
-              padding: { x: 10, y: 8 },
-            })
-            .setDepth(50);
+          this.cameras.main.startFollow(this.boat, true, 0.08, 0.08);
+          this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-          this.hudText = this.add
-            .text(16, 72, "", {
-              fontSize: "18px",
-              color: "#ffffff",
-              backgroundColor: "rgba(0,0,0,0.35)",
-              padding: { x: 10, y: 8 },
-            })
-            .setDepth(50);
+          this.add.text(30, 20, "🌊 오픈월드 바다", {
+            fontSize: "28px",
+            color: "#ffffff",
+            backgroundColor: "rgba(0,0,0,0.4)",
+            padding: { x: 12, y: 8 },
+          }).setScrollFactor(0).setDepth(100);
 
-          this.fishText = this.add.text(width / 2, height - 118, "", {
-            fontSize: "25px",
-            color: "#fde047",
-            align: "center",
-            fontStyle: "bold",
-          });
-          this.fishText.setOrigin(0.5);
-          this.fishText.setDepth(50);
-
-          this.createFishingPanel();
-          this.refreshHud();
+          this.add.text(30, 70, "🏝️ 섬 탐험 / 물고기 추적", {
+            fontSize: "18px",
+            color: "#cbd5e1",
+            backgroundColor: "rgba(0,0,0,0.35)",
+            padding: { x: 10, y: 6 },
+          }).setScrollFactor(0).setDepth(100);
 
           window.addEventListener("ocean-move", this.onMove as EventListener);
-          window.addEventListener("ocean-fish", this.onFish as EventListener);
         }
 
-        spawnFishByTexture(texture: string, amount: number) {
-          const width = this.scale.width;
-          const height = this.scale.height;
+        addIsland(x: number, y: number) {
+          const island = this.add.image(x, y, "island");
+          island.setScale(0.7);
+          island.setAlpha(0.8);
 
+          this.add.circle(x, y, 120, 0xfacc15, 0.85);
+          this.add.circle(x, y, 90, 0x65a30d, 1);
+          this.add.circle(x, y, 60, 0x16a34a, 1);
+        }
+
+        spawnFish(texture: string, amount: number) {
           for (let i = 0; i < amount; i++) {
-            const fish = this.add.image(
-              Phaser.Math.Between(90, width - 90),
-              Phaser.Math.Between(130, height - 130),
+            const fish = this.physics.add.image(
+              Phaser.Math.Between(150, 4050),
+              Phaser.Math.Between(150, 4050),
               texture
             );
 
-            fish.setScale(Phaser.Math.FloatBetween(0.42, 0.78));
-            fish.setAlpha(Phaser.Math.FloatBetween(0.55, 0.92));
+            fish.setScale(
+              Phaser.Math.FloatBetween(0.45, 0.8)
+            );
+
+            fish.setAlpha(
+              Phaser.Math.FloatBetween(0.5, 0.9)
+            );
+
             this.fishes.push(fish);
 
             this.tweens.add({
               targets: fish,
-              x: fish.x + Phaser.Math.Between(-180, 180),
-              y: fish.y + Phaser.Math.Between(-120, 120),
-              angle: Phaser.Math.Between(-12, 12),
-              duration: Phaser.Math.Between(2800, 7600),
+              x: fish.x + Phaser.Math.Between(-240, 240),
+              y: fish.y + Phaser.Math.Between(-240, 240),
+              duration: Phaser.Math.Between(2500, 7000),
               yoyo: true,
               repeat: -1,
             });
           }
         }
 
-        spawnOneFish() {
-          const textures = ["fish_common", "fish_common", "fish_rare", "fish_epic", "fish_legend"];
-          const texture = Phaser.Utils.Array.GetRandom(textures);
-          this.spawnFishByTexture(texture, 1);
-        }
-
-        createFishingPanel() {
-          const width = this.scale.width;
-          const height = this.scale.height;
-
-          this.fishingPanel = this.add.container(width / 2, height / 2);
-          this.fishingPanel.setVisible(false);
-          this.fishingPanel.setDepth(100);
-
-          const bg = this.add.rectangle(0, 0, width * 0.9, 395, 0x020617, 0.96);
-          bg.setStrokeStyle(4, 0x22d3ee);
-
-          const title = this.add.text(0, -158, "🎣 낚시 시작!", {
-            fontSize: "34px",
-            color: "#ffffff",
-            fontStyle: "bold",
-          });
-          title.setOrigin(0.5);
-
-          this.fishNameText = this.add.text(0, -112, "", {
-            fontSize: "22px",
-            color: "#fde047",
-            align: "center",
-            fontStyle: "bold",
-            wordWrap: { width: width * 0.78 },
-          });
-          this.fishNameText.setOrigin(0.5);
-
-          const guide = this.add.text(0, -64, "바늘이 초록 구간에 들어왔을 때 낚시 버튼!", {
-            fontSize: "18px",
-            color: "#cbd5e1",
-            align: "center",
-            wordWrap: { width: width * 0.76 },
-          });
-          guide.setOrigin(0.5);
-
-          this.timingBar = this.add.rectangle(0, 15, width * 0.72, 34, 0x334155);
-          this.timingBar.setStrokeStyle(3, 0xffffff, 0.4);
-
-          this.hitZone = this.add.rectangle(0, 15, width * 0.18, 48, 0x22c55e, 0.92);
-          this.pointer = this.add.rectangle(-width * 0.34, 15, 12, 74, 0xfacc15);
-
-          this.resultText = this.add.text(0, 112, "", {
-            fontSize: "27px",
-            color: "#fde047",
-            fontStyle: "bold",
-            align: "center",
-            wordWrap: { width: width * 0.78 },
-          });
-          this.resultText.setOrigin(0.5);
-
-          const sub = this.add.text(0, 166, "PERFECT면 보상 증가, MISS면 도망갑니다.", {
-            fontSize: "15px",
-            color: "#94a3b8",
-          });
-          sub.setOrigin(0.5);
-
-          this.fishingPanel.add([
-            bg,
-            title,
-            this.fishNameText,
-            guide,
-            this.timingBar,
-            this.hitZone,
-            this.pointer,
-            this.resultText,
-            sub,
-          ]);
-        }
-
-        refreshHud() {
-          this.hudText.setText(`💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}`);
-        }
-
         onMove = (event: Event) => {
-          if (this.isFishing) return;
           const custom = event as CustomEvent;
           this.move = custom.detail;
         };
 
-        onFish = () => {
-          if (this.isFishing) {
-            if (this.isResolving) return;
-            this.tryCatch();
-            return;
-          }
-
-          if (!this.canFish || !this.targetFish) {
-            this.fishText.setText("🐟 물고기 실루엣 근처로 이동하세요!");
-            this.time.delayedCall(800, () => {
-              if (!this.canFish) this.fishText.setText("");
-            });
-            return;
-          }
-
-          this.startFishingBattle();
-        };
-
-        startFishingBattle() {
-          if (this.isFishing || this.isResolving) return;
-          this.isFishing = true;
-          this.isResolving = false;
-          this.move = { x: 0, y: 0 };
-          this.selectedFish = pickFish(regionId);
-
-          const grade = gradeInfo[this.selectedFish.grade];
-          this.fishNameText.setText(`${grade.emoji} ${grade.name} 어종의 입질!`);
-          this.fishNameText.setColor(grade.color);
-          this.resultText.setText("");
-          this.resultText.setColor("#fde047");
-
-          const width = this.scale.width;
-          this.hitZone.width = width * grade.zone;
-          this.hitZone.x = Phaser.Math.Between(-Math.floor(width * 0.22), Math.floor(width * 0.22));
-          this.pointer.x = -this.timingBar.width / 2;
-          this.pointerDirection = 1;
-
-          this.fishingPanel.setVisible(true);
-          this.fishText.setText("");
-        }
-
-        tryCatch() {
-          if (this.isResolving) return;
-          this.isResolving = true;
-
-          const center = this.pointer.x;
-          const left = this.hitZone.x - this.hitZone.width / 2;
-          const right = this.hitZone.x + this.hitZone.width / 2;
-          const perfectRange = Math.max(12, this.hitZone.width * 0.18);
-          const perfect = Math.abs(center - this.hitZone.x) <= perfectRange;
-          const success = center >= left && center <= right;
-          const grade = gradeInfo[this.selectedFish.grade];
-
-          if (success) {
-            const bonus = perfect ? 1.5 : 1;
-            const goldGain = Math.floor(this.selectedFish.price * bonus);
-            const expGain = Math.floor(this.selectedFish.exp * bonus);
-
-            this.gold += goldGain;
-            this.exp += expGain;
-            this.caught += 1;
-            this.refreshHud();
-
-            if (this.targetFish) {
-              const burst = this.add.image(this.targetFish.x, this.targetFish.y, grade.burst);
-              burst.setScale(0.25);
-              burst.setDepth(40);
-
-              this.tweens.add({
-                targets: burst,
-                scale: 1.4,
-                alpha: 0,
-                duration: 700,
-                onComplete: () => burst.destroy(),
-              });
-
-              this.targetFish.destroy();
-              this.fishes = this.fishes.filter((f) => f !== this.targetFish);
-              this.spawnOneFish();
-            }
-
-            this.targetFish = null;
-            this.canFish = false;
-
-            this.resultText.setColor(perfect ? "#fde047" : "#86efac");
-            this.resultText.setText(
-              `${perfect ? "🌟 PERFECT!" : "✅ GOOD!"}\n${grade.emoji} ${this.selectedFish.name}\n+${goldGain.toLocaleString()}G / +${expGain}EXP`
-            );
-          } else {
-            if (this.targetFish) {
-              this.targetFish.destroy();
-              this.fishes = this.fishes.filter((f) => f !== this.targetFish);
-              this.spawnOneFish();
-            }
-
-            this.targetFish = null;
-            this.canFish = false;
-            this.resultText.setColor("#fca5a5");
-            this.resultText.setText("💨 MISS!\n물고기가 도망갔습니다.");
-          }
-
-          this.time.delayedCall(1500, () => {
-            this.fishingPanel.setVisible(false);
-            this.isFishing = false;
-            this.isResolving = false;
-            this.resultText.setText("");
-          });
-        }
-
         update() {
-          if (this.isFishing) {
-            const speed = gradeInfo[this.selectedFish.grade].speed;
-            const limit = this.timingBar.width / 2;
+          const speed = 240;
 
-            this.pointer.x += this.pointerDirection * speed;
-
-            if (this.pointer.x >= limit) {
-              this.pointer.x = limit;
-              this.pointerDirection = -1;
-            }
-
-            if (this.pointer.x <= -limit) {
-              this.pointer.x = -limit;
-              this.pointerDirection = 1;
-            }
-
-            return;
-          }
-
-          const speed = 5;
-          this.boat.x += this.move.x * speed;
-          this.boat.y += this.move.y * speed;
-
-          this.boat.x = Phaser.Math.Clamp(this.boat.x, 50, this.scale.width - 50);
-          this.boat.y = Phaser.Math.Clamp(this.boat.y, 80, this.scale.height - 80);
+          this.boat.setVelocity(
+            this.move.x * speed,
+            this.move.y * speed
+          );
 
           if (this.move.x !== 0 || this.move.y !== 0) {
-            this.boat.rotation = Math.atan2(this.move.y, this.move.x) + Math.PI / 2;
+            this.boat.rotation =
+              Math.atan2(this.move.y, this.move.x) +
+              Math.PI / 2;
           }
-
-          this.canFish = false;
-          this.targetFish = null;
 
           for (const fish of this.fishes) {
-            const dist = Phaser.Math.Distance.Between(this.boat.x, this.boat.y, fish.x, fish.y);
+            const dist = Phaser.Math.Distance.Between(
+              this.boat.x,
+              this.boat.y,
+              fish.x,
+              fish.y
+            );
 
-            if (dist < 110) {
-              this.canFish = true;
-              this.targetFish = fish;
-              this.fishText.setText("🎣 물고기 실루엣 발견!\n낚시 버튼을 누르세요");
-              break;
+            if (dist < 180) {
+              const angle = Phaser.Math.Angle.Between(
+                this.boat.x,
+                this.boat.y,
+                fish.x,
+                fish.y
+              );
+
+              this.physics.velocityFromRotation(
+                angle,
+                160,
+                fish.body.velocity
+              );
+            } else {
+              fish.setVelocity(0, 0);
             }
-          }
-
-          if (!this.canFish) {
-            this.fishText.setText("");
           }
         }
 
         shutdown() {
-          window.removeEventListener("ocean-move", this.onMove as EventListener);
-          window.removeEventListener("ocean-fish", this.onFish as EventListener);
+          window.removeEventListener(
+            "ocean-move",
+            this.onMove as EventListener
+          );
         }
       }
 
@@ -397,7 +176,12 @@ function OceanGame() {
         width: window.innerWidth,
         height: window.innerHeight,
         parent: gameRef.current!,
-        backgroundColor: "#082f49",
+        physics: {
+          default: "arcade",
+          arcade: {
+            debug: false,
+          },
+        },
         scene: OceanScene,
         scale: {
           mode: Phaser.Scale.RESIZE,
@@ -414,51 +198,82 @@ function OceanGame() {
   }, [regionId]);
 
   function move(x: number, y: number) {
-    window.dispatchEvent(new CustomEvent("ocean-move", { detail: { x, y } }));
+    window.dispatchEvent(
+      new CustomEvent("ocean-move", {
+        detail: { x, y },
+      })
+    );
   }
 
   function stopMove() {
-    window.dispatchEvent(new CustomEvent("ocean-move", { detail: { x: 0, y: 0 } }));
-  }
-
-  function fish() {
-    window.dispatchEvent(new CustomEvent("ocean-fish"));
+    window.dispatchEvent(
+      new CustomEvent("ocean-move", {
+        detail: { x: 0, y: 0 },
+      })
+    );
   }
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-black">
       <div ref={gameRef} className="h-full w-full" />
 
-      <a href="/regions" className="absolute left-4 top-4 z-50 rounded-2xl bg-black/50 px-4 py-3 text-sm font-black text-white backdrop-blur">
-        ← 지역
+      <a
+        href="/"
+        className="absolute left-4 top-4 z-50 rounded-2xl bg-black/50 px-4 py-3 text-sm font-black text-white backdrop-blur"
+      >
+        ← 홈
       </a>
 
       <div className="absolute bottom-8 left-5 z-50 grid grid-cols-3 gap-2">
         <div />
-        <button onTouchStart={() => move(0, -1)} onTouchEnd={stopMove} onMouseDown={() => move(0, -1)} onMouseUp={stopMove} className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white backdrop-blur active:scale-95">▲</button>
+
+        <button
+          onTouchStart={() => move(0, -1)}
+          onTouchEnd={stopMove}
+          className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white"
+        >
+          ▲
+        </button>
+
         <div />
 
-        <button onTouchStart={() => move(-1, 0)} onTouchEnd={stopMove} onMouseDown={() => move(-1, 0)} onMouseUp={stopMove} className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white backdrop-blur active:scale-95">◀</button>
-        <div className="h-16 w-16 rounded-2xl bg-cyan-400/30 backdrop-blur" />
-        <button onTouchStart={() => move(1, 0)} onTouchEnd={stopMove} onMouseDown={() => move(1, 0)} onMouseUp={stopMove} className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white backdrop-blur active:scale-95">▶</button>
+        <button
+          onTouchStart={() => move(-1, 0)}
+          onTouchEnd={stopMove}
+          className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white"
+        >
+          ◀
+        </button>
+
+        <div className="h-16 w-16 rounded-2xl bg-cyan-400/30" />
+
+        <button
+          onTouchStart={() => move(1, 0)}
+          onTouchEnd={stopMove}
+          className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white"
+        >
+          ▶
+        </button>
 
         <div />
-        <button onTouchStart={() => move(0, 1)} onTouchEnd={stopMove} onMouseDown={() => move(0, 1)} onMouseUp={stopMove} className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white backdrop-blur active:scale-95">▼</button>
+
+        <button
+          onTouchStart={() => move(0, 1)}
+          onTouchEnd={stopMove}
+          className="h-16 w-16 rounded-2xl bg-white/20 text-3xl font-black text-white"
+        >
+          ▼
+        </button>
+
         <div />
       </div>
-
-      <button onClick={fish} className="absolute bottom-10 right-5 z-50 h-24 w-24 rounded-full bg-cyan-400 text-xl font-black text-slate-950 shadow-2xl shadow-cyan-400/40 active:scale-95">
-        🎣
-        <br />
-        낚시
-      </button>
     </main>
   );
 }
 
 export default function OceanPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-slate-950 text-white">로딩 중...</main>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <OceanGame />
     </Suspense>
   );
