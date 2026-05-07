@@ -4,6 +4,61 @@ import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { gradeInfo, pickFish, regions } from "../../data/fishingData";
 
+type SaveData = {
+  gold: number;
+  exp: number;
+  caught: number;
+  collection: Record<string, number>;
+  upgrades: {
+    rod: number;
+    engine: number;
+    radar: number;
+  };
+};
+
+const SAVE_KEY = "overwatch-fishing-save-v1";
+
+function defaultSave(): SaveData {
+  return {
+    gold: 3000,
+    exp: 0,
+    caught: 0,
+    collection: {},
+    upgrades: {
+      rod: 0,
+      engine: 0,
+      radar: 0,
+    },
+  };
+}
+
+function loadSave(): SaveData {
+  if (typeof window === "undefined") return defaultSave();
+
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return defaultSave();
+
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultSave(),
+      ...parsed,
+      upgrades: {
+        ...defaultSave().upgrades,
+        ...(parsed.upgrades || {}),
+      },
+      collection: parsed.collection || {},
+    };
+  } catch {
+    return defaultSave();
+  }
+}
+
+function saveGame(data: SaveData) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+
 function OceanGame() {
   const gameRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -23,7 +78,6 @@ function OceanGame() {
         hudText: any;
         catchHint: any;
         nearbySign: any;
-        islands: any[] = [];
 
         move = { x: 0, y: 0 };
         canFish = false;
@@ -42,6 +96,7 @@ function OceanGame() {
         pointerDirection = 1;
         selectedFish = pickFish(regionId);
 
+        saveData: SaveData = defaultSave();
         gold = 3000;
         exp = 0;
         caught = 0;
@@ -84,6 +139,11 @@ function OceanGame() {
         }
 
         create() {
+          this.saveData = loadSave();
+          this.gold = this.saveData.gold;
+          this.exp = this.saveData.exp;
+          this.caught = this.saveData.caught;
+
           const width = this.scale.width;
           const height = this.scale.height;
 
@@ -194,11 +254,12 @@ function OceanGame() {
             island.setScale(scale);
             island.setAlpha(0.92);
             island.setDepth(5);
-            this.islands.push(island);
           }
         }
 
         spawnRegionFish() {
+          const radarBonus = this.saveData.upgrades.radar;
+
           const textures = [
             "fish_common",
             "fish_common",
@@ -208,6 +269,10 @@ function OceanGame() {
             "fish_epic",
             "fish_legend",
           ];
+
+          if (radarBonus >= 1) textures.push("fish_epic");
+          if (radarBonus >= 2) textures.push("fish_legend");
+          if (radarBonus >= 3) textures.push("fish_mythic");
 
           if (regionId === "null_sector" || regionId === "horizon" || regionId === "antarctica") {
             textures.push("fish_mythic", "fish_transcend");
@@ -234,7 +299,6 @@ function OceanGame() {
           fish.setScale(Phaser.Math.FloatBetween(0.075, 0.115));
           fish.setAlpha(Phaser.Math.FloatBetween(0.62, 0.9));
           fish.setDepth(15);
-          fish.setData("baseScale", fish.scaleX);
           fish.setData("textureName", chosenTexture);
           this.fishes.push(fish);
 
@@ -323,7 +387,7 @@ function OceanGame() {
           });
           this.resultText.setOrigin(0.5);
 
-          const sub = this.add.text(0, 176, "한 마리씩만 잡힙니다. 결과 중 연타는 무시됩니다.", {
+          const sub = this.add.text(0, 176, "저장됨: 골드 / EXP / 도감 / 상점 업그레이드", {
             fontSize: "14px",
             color: "#94a3b8",
             stroke: "#000000",
@@ -346,7 +410,17 @@ function OceanGame() {
         }
 
         refreshHud() {
-          this.hudText.setText(`💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}`);
+          const { rod, engine, radar } = this.saveData.upgrades;
+          this.hudText.setText(
+            `💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}\n🎣 낚싯대 Lv.${rod}  🚤 엔진 Lv.${engine}  📡 레이더 Lv.${radar}`
+          );
+        }
+
+        persist() {
+          this.saveData.gold = this.gold;
+          this.saveData.exp = this.exp;
+          this.saveData.caught = this.caught;
+          saveGame(this.saveData);
         }
 
         onMove = (event: Event) => {
@@ -393,7 +467,8 @@ function OceanGame() {
           this.resultBadge.setVisible(false);
 
           const width = this.scale.width;
-          this.hitZone.width = width * grade.zone;
+          const rodBonus = this.saveData.upgrades.rod * 0.018;
+          this.hitZone.width = width * Math.min(0.34, grade.zone + rodBonus);
           this.hitZone.x = Phaser.Math.Between(-Math.floor(width * 0.22), Math.floor(width * 0.22));
           this.pointer.x = -this.timingBar.width / 2;
           this.pointerDirection = 1;
@@ -424,6 +499,9 @@ function OceanGame() {
             this.gold += goldGain;
             this.exp += expGain;
             this.caught += 1;
+            this.saveData.collection[this.selectedFish.id] =
+              (this.saveData.collection[this.selectedFish.id] || 0) + 1;
+            this.persist();
             this.refreshHud();
 
             if (this.targetFish) {
@@ -451,7 +529,7 @@ function OceanGame() {
             this.resultBadge.setVisible(true);
             this.resultText.setColor(perfect ? "#fde047" : "#86efac");
             this.resultText.setText(
-              `${grade.emoji} ${this.selectedFish.name}\n+${goldGain.toLocaleString()}G / +${expGain}EXP`
+              `${grade.emoji} ${this.selectedFish.name}\n+${goldGain.toLocaleString()}G / +${expGain}EXP\n도감 저장 완료`
             );
           } else {
             if (this.targetFish) {
@@ -502,7 +580,8 @@ function OceanGame() {
             return;
           }
 
-          const speed = 5;
+          const engineBonus = this.saveData.upgrades.engine * 0.7;
+          const speed = 5 + engineBonus;
           const moving = this.move.x !== 0 || this.move.y !== 0;
 
           this.boat.x += this.move.x * speed;
@@ -521,10 +600,12 @@ function OceanGame() {
           this.canFish = false;
           this.targetFish = null;
 
+          const detectRange = 122 + this.saveData.upgrades.radar * 18;
+
           for (const fish of this.fishes) {
             const dist = Phaser.Math.Distance.Between(this.boat.x, this.boat.y, fish.x, fish.y);
 
-            if (dist < 122) {
+            if (dist < detectRange) {
               this.canFish = true;
               this.targetFish = fish;
               this.fishText.setText("🎣 물고기 실루엣 발견!");
@@ -600,51 +681,24 @@ function OceanGame() {
         ← 지역
       </a>
 
+      <a
+        href="/collection"
+        className="absolute right-4 top-4 z-50 rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur"
+      >
+        📖 도감
+      </a>
+
       <div className="absolute bottom-8 left-5 z-50 grid grid-cols-3 gap-2">
         <div />
-        <button
-          onTouchStart={() => move(0, -1)}
-          onTouchEnd={stopMove}
-          onMouseDown={() => move(0, -1)}
-          onMouseUp={stopMove}
-          className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95"
-        >
-          ▲
-        </button>
+        <button onTouchStart={() => move(0, -1)} onTouchEnd={stopMove} onMouseDown={() => move(0, -1)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">▲</button>
         <div />
 
-        <button
-          onTouchStart={() => move(-1, 0)}
-          onTouchEnd={stopMove}
-          onMouseDown={() => move(-1, 0)}
-          onMouseUp={stopMove}
-          className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95"
-        >
-          ◀
-        </button>
-
+        <button onTouchStart={() => move(-1, 0)} onTouchEnd={stopMove} onMouseDown={() => move(-1, 0)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">◀</button>
         <div className="h-16 w-16 rounded-xl border-2 border-cyan-300 bg-cyan-400/20 shadow-lg" />
-
-        <button
-          onTouchStart={() => move(1, 0)}
-          onTouchEnd={stopMove}
-          onMouseDown={() => move(1, 0)}
-          onMouseUp={stopMove}
-          className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95"
-        >
-          ▶
-        </button>
+        <button onTouchStart={() => move(1, 0)} onTouchEnd={stopMove} onMouseDown={() => move(1, 0)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">▶</button>
 
         <div />
-        <button
-          onTouchStart={() => move(0, 1)}
-          onTouchEnd={stopMove}
-          onMouseDown={() => move(0, 1)}
-          onMouseUp={stopMove}
-          className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95"
-        >
-          ▼
-        </button>
+        <button onTouchStart={() => move(0, 1)} onTouchEnd={stopMove} onMouseDown={() => move(0, 1)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">▼</button>
         <div />
       </div>
 
