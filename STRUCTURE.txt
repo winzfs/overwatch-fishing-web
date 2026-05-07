@@ -1,0 +1,11 @@
+프로젝트 구조
+
+app/
+  ocean/
+    page.tsx
+  regions/
+    page.tsx
+  page.tsx
+
+data/
+  fishingData.ts
