@@ -783,7 +783,7 @@ function OceanGame() {
             (this.keys.up?.isDown || this.keys.up2?.isDown ? -1 : 0) +
             (this.keys.down?.isDown || this.keys.down2?.isDown ? 1 : 0);
 
-          if (!this.isFishing && (x !== 0 || y !== 0)) {
+          if (!this.isFishing) {
             this.move = { x, y };
           }
 
@@ -971,45 +971,152 @@ function OceanGame() {
     window.dispatchEvent(new CustomEvent("ocean-fish"));
   }
 
+  function holdMove(x: number, y: number) {
+    move(x, y);
+  }
+
+  function releaseMove() {
+    stopMove();
+  }
+
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-black">
+    <main
+      className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none"
+      style={{ touchAction: "none" }}
+    >
       <div ref={gameRef} className="h-full w-full" />
 
-      <a href="/regions" className="absolute left-4 top-4 z-50 rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur">
-        ← 지역
-      </a>
+      {/* 모바일에서는 상단 UI를 작게 정리 */}
+      <div className="absolute left-3 top-3 z-50 flex gap-2">
+        <a
+          href="/regions"
+          className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur"
+        >
+          ← 지역
+        </a>
 
-      <div className="absolute right-4 top-4 z-50 flex gap-2">
-        <a href="/collection" className="rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur">📖 도감</a>
-        <a href="/shop" className="rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur">🏪 상점</a>
+        <a
+          href="/collection"
+          className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur"
+        >
+          📖
+        </a>
+
+        <a
+          href="/shop"
+          className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur"
+        >
+          🏪
+        </a>
       </div>
 
-      <div className="absolute bottom-8 left-5 z-50 grid grid-cols-3 gap-2">
+      {/* PC 안내는 큰 화면에서만 표시 */}
+      <div className="pointer-events-none absolute right-3 top-3 z-50 hidden rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white/80 backdrop-blur sm:block">
+        PC: WASD/방향키 이동 · Space/Enter 낚시
+      </div>
+
+      {/* 모바일 조이스틱: 작고 아래쪽, 멀티터치 대응 */}
+      <div
+        className="absolute bottom-5 left-4 z-50 grid grid-cols-3 gap-1.5 rounded-3xl border border-white/10 bg-black/25 p-2 backdrop-blur"
+        style={{ touchAction: "none" }}
+      >
         <div />
-        <button onTouchStart={() => move(0, -1)} onTouchEnd={stopMove} onMouseDown={() => move(0, -1)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">▲</button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            holdMove(0, -1);
+          }}
+          onPointerUp={releaseMove}
+          onPointerCancel={releaseMove}
+          onPointerLeave={releaseMove}
+          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
+        >
+          ▲
+        </button>
         <div />
 
-        <button onTouchStart={() => move(-1, 0)} onTouchEnd={stopMove} onMouseDown={() => move(-1, 0)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">◀</button>
-        <div className="h-16 w-16 rounded-xl border-2 border-cyan-300 bg-cyan-400/20 shadow-lg" />
-        <button onTouchStart={() => move(1, 0)} onTouchEnd={stopMove} onMouseDown={() => move(1, 0)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">▶</button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            holdMove(-1, 0);
+          }}
+          onPointerUp={releaseMove}
+          onPointerCancel={releaseMove}
+          onPointerLeave={releaseMove}
+          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
+        >
+          ◀
+        </button>
+
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            holdMove(0, 0);
+          }}
+          onPointerUp={releaseMove}
+          onPointerCancel={releaseMove}
+          className="h-12 w-12 rounded-xl border border-cyan-300/40 bg-cyan-400/20 text-sm font-black text-cyan-100 sm:h-14 sm:w-14"
+        >
+          ●
+        </button>
+
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            holdMove(1, 0);
+          }}
+          onPointerUp={releaseMove}
+          onPointerCancel={releaseMove}
+          onPointerLeave={releaseMove}
+          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
+        >
+          ▶
+        </button>
 
         <div />
-        <button onTouchStart={() => move(0, 1)} onTouchEnd={stopMove} onMouseDown={() => move(0, 1)} onMouseUp={stopMove} className="h-16 w-16 rounded-xl border-2 border-slate-300 bg-blue-950/70 text-3xl font-black text-white shadow-lg active:scale-95">▼</button>
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            holdMove(0, 1);
+          }}
+          onPointerUp={releaseMove}
+          onPointerCancel={releaseMove}
+          onPointerLeave={releaseMove}
+          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
+        >
+          ▼
+        </button>
         <div />
       </div>
 
+      {/* 낚시 버튼: 오른쪽 아래로 분리, 멀티터치 대응 */}
       <button
-        onClick={fish}
-        className="absolute bottom-9 right-5 z-50 h-24 w-24 rounded-full border-4 border-amber-900 bg-blue-600 text-xl font-black text-white shadow-2xl active:scale-95"
+        type="button"
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          fish();
+        }}
+        className="absolute bottom-8 right-5 z-50 h-20 w-20 rounded-full border-4 border-amber-800 bg-blue-600 text-lg font-black text-white shadow-2xl active:scale-95 sm:h-24 sm:w-24"
         style={{
           backgroundImage: "url('/assets/ui/hook_button.png')",
           backgroundSize: "cover",
           backgroundPosition: "center",
+          touchAction: "none",
           color: "transparent",
         }}
       >
         낚시
       </button>
+
+      {/* 하단 중앙 여백 확보용 미니 안내 */}
+      <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/70 backdrop-blur sm:hidden">
+        왼쪽 이동 · 오른쪽 낚시
+      </div>
     </main>
   );
 }
