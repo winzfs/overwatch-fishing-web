@@ -22,7 +22,7 @@ export default function Home() {
 
                                                                                                                                               <div className="mt-10 grid w-full max-w-md gap-3">
                                                                                                                                                         <a
-                                                                                                                                                                    href="/regions"
+                                                                                                                                                                    href="/ocean"
                                                                                                                                                                                 className="rounded-2xl bg-cyan-400 px-6 py-4 text-xl font-black text-slate-950 shadow-lg shadow-cyan-400/30"
                                                                                                                                                                                           >
                                                                                                                                                                                                       🎮 게임 시작
