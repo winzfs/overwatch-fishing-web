@@ -14,6 +14,12 @@ type SaveData = {
     engine: number;
     radar: number;
   };
+  quests?: {
+    date: string;
+    claimed: Record<string, boolean>;
+  };
+  achievements?: Record<string, boolean>;
+  records?: Record<string, { cm: number; kg: number }>;
 };
 
 const SAVE_KEY = "overwatch-fishing-save-v1";
@@ -29,6 +35,12 @@ function defaultSave(): SaveData {
       engine: 0,
       radar: 0,
     },
+    quests: {
+      date: new Date().toISOString().slice(0, 10),
+      claimed: {},
+    },
+    achievements: {},
+    records: {},
   };
 }
 
@@ -43,11 +55,14 @@ function loadSave(): SaveData {
     return {
       ...defaultSave(),
       ...parsed,
+      collection: parsed.collection || {},
       upgrades: {
         ...defaultSave().upgrades,
         ...(parsed.upgrades || {}),
       },
-      collection: parsed.collection || {},
+      quests: parsed.quests || defaultSave().quests,
+      achievements: parsed.achievements || {},
+      records: parsed.records || {},
     };
   } catch {
     return defaultSave();
@@ -58,6 +73,8 @@ function saveGame(data: SaveData) {
   if (typeof window === "undefined") return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
+
+type BattlePhase = "idle" | "bite" | "pull" | "reel" | "result";
 
 function OceanGame() {
   const gameRef = useRef<HTMLDivElement>(null);
@@ -71,30 +88,41 @@ function OceanGame() {
     async function startGame() {
       const Phaser = (await import("phaser")).default;
 
-      class RegionalFishingScene extends Phaser.Scene {
+      class FunFishingScene extends Phaser.Scene {
         boat: any;
         fishes: any[] = [];
         fishText: any;
         hudText: any;
         catchHint: any;
         nearbySign: any;
+        eventText: any;
 
         move = { x: 0, y: 0 };
+        keys: any = {};
         canFish = false;
         targetFish: any = null;
 
-        fishingPanel: any;
+        panel: any;
         timingBar: any;
         hitZone: any;
         pointer: any;
-        fishNameText: any;
-        resultText: any;
+        battleTitle: any;
+        battleGuide: any;
+        battleText: any;
         resultBadge: any;
+        tensionBg: any;
+        tensionFill: any;
 
         isFishing = false;
         isResolving = false;
+        phase: BattlePhase = "idle";
         pointerDirection = 1;
+        tension = 50;
+        reelProgress = 0;
+        battleTimer = 0;
+        requiredDirection = "LEFT";
         selectedFish = pickFish(regionId);
+        fishSize = { cm: 0, kg: 0, sizeRank: "중형", multiplier: 1 };
 
         saveData: SaveData = defaultSave();
         gold = 3000;
@@ -103,7 +131,7 @@ function OceanGame() {
         animTimer = 0;
 
         constructor() {
-          super("RegionalFishingScene");
+          super("FunFishingScene");
         }
 
         preload() {
@@ -113,7 +141,6 @@ function OceanGame() {
           this.load.image("island_rocky", "/assets/backgrounds/island_rocky.png");
           this.load.image("island_sandbar", "/assets/backgrounds/island_sandbar.png");
 
-          this.load.image("boat_top", "/assets/sprites/boat_top.png");
           this.load.image("boat_idle_1", "/assets/sprites/boat_idle_1.png");
           this.load.image("boat_idle_2", "/assets/sprites/boat_idle_2.png");
           this.load.image("boat_move_1", "/assets/sprites/boat_move_1.png");
@@ -148,7 +175,6 @@ function OceanGame() {
           const height = this.scale.height;
 
           this.add.rectangle(width / 2, height / 2, width, height, currentRegion.bg);
-
           this.drawPixelOcean(width, height);
           this.placeRegionDecor(width, height);
           this.spawnRegionFish();
@@ -156,6 +182,19 @@ function OceanGame() {
           this.boat = this.add.image(width / 2, height / 2, "boat_idle_1");
           this.boat.setScale(0.13);
           this.boat.setDepth(30);
+
+          this.keys = this.input.keyboard?.addKeys({
+            up: "W",
+            down: "S",
+            left: "A",
+            right: "D",
+            up2: "UP",
+            down2: "DOWN",
+            left2: "LEFT",
+            right2: "RIGHT",
+            fish: "SPACE",
+            fish2: "ENTER",
+          });
 
           this.add
             .text(16, 18, `${currentRegion.emoji} ${currentRegion.name}`, {
@@ -169,14 +208,26 @@ function OceanGame() {
 
           this.hudText = this.add
             .text(16, 72, "", {
-              fontSize: "18px",
+              fontSize: "17px",
               color: "#ffffff",
               backgroundColor: "rgba(0,0,0,0.45)",
               padding: { x: 10, y: 8 },
             })
             .setDepth(80);
 
-          this.fishText = this.add.text(width / 2, height - 138, "", {
+          this.eventText = this.add.text(width / 2, 118, "", {
+            fontSize: "20px",
+            color: "#fde047",
+            align: "center",
+            fontStyle: "bold",
+            backgroundColor: "rgba(0,0,0,0.55)",
+            padding: { x: 14, y: 8 },
+          });
+          this.eventText.setOrigin(0.5);
+          this.eventText.setVisible(false);
+          this.eventText.setDepth(95);
+
+          this.fishText = this.add.text(width / 2, height - 142, "", {
             fontSize: "23px",
             color: "#fde047",
             align: "center",
@@ -193,7 +244,7 @@ function OceanGame() {
           this.nearbySign.setDepth(85);
 
           this.catchHint = this.add.text(width / 2, height - 76, "", {
-            fontSize: "16px",
+            fontSize: "15px",
             color: "#ffffff",
             align: "center",
             fontStyle: "bold",
@@ -203,7 +254,7 @@ function OceanGame() {
           this.catchHint.setOrigin(0.5);
           this.catchHint.setDepth(90);
 
-          this.createFishingPanel();
+          this.createBattlePanel();
           this.refreshHud();
 
           window.addEventListener("ocean-move", this.onMove as EventListener);
@@ -215,22 +266,22 @@ function OceanGame() {
             for (let y = -20; y < height + 120; y += 100) {
               const texture = (x + y) % 300 === 0 ? "shallow" : "ocean";
               const tile = this.add.image(x, y, texture).setOrigin(0);
-              tile.setAlpha(texture === "shallow" ? 0.18 : 0.8);
+              tile.setAlpha(texture === "shallow" ? 0.2 : 0.85);
             }
           }
 
-          for (let i = 0; i < 28; i++) {
+          for (let i = 0; i < 34; i++) {
             const sparkle = this.add.circle(
               Phaser.Math.Between(20, width - 20),
               Phaser.Math.Between(110, height - 120),
               Phaser.Math.Between(1, 3),
               0xffffff,
-              Phaser.Math.FloatBetween(0.25, 0.55)
+              Phaser.Math.FloatBetween(0.22, 0.5)
             );
 
             this.tweens.add({
               targets: sparkle,
-              alpha: 0.05,
+              alpha: 0.04,
               duration: Phaser.Math.Between(900, 1800),
               yoyo: true,
               repeat: -1,
@@ -258,7 +309,7 @@ function OceanGame() {
         }
 
         spawnRegionFish() {
-          const radarBonus = this.saveData.upgrades.radar;
+          const radar = this.saveData.upgrades.radar;
 
           const textures = [
             "fish_common",
@@ -270,47 +321,40 @@ function OceanGame() {
             "fish_legend",
           ];
 
-          if (radarBonus >= 1) textures.push("fish_epic");
-          if (radarBonus >= 2) textures.push("fish_legend");
-          if (radarBonus >= 3) textures.push("fish_mythic");
+          if (radar >= 1) textures.push("fish_epic");
+          if (radar >= 2) textures.push("fish_legend");
+          if (radar >= 3) textures.push("fish_mythic");
 
           if (regionId === "null_sector" || regionId === "horizon" || regionId === "antarctica") {
             textures.push("fish_mythic", "fish_transcend");
           }
 
-          for (let i = 0; i < 14; i++) {
-            const texture = Phaser.Utils.Array.GetRandom(textures);
-            this.spawnOneFish(texture);
+          for (let i = 0; i < 15; i++) {
+            this.spawnOneFish(Phaser.Utils.Array.GetRandom(textures));
           }
         }
 
         spawnOneFish(texture?: string) {
           const width = this.scale.width;
           const height = this.scale.height;
-          const chosenTexture =
+          const chosen =
             texture || Phaser.Utils.Array.GetRandom(["fish_common", "fish_common", "fish_rare", "fish_epic"]);
 
           const fish = this.add.image(
             Phaser.Math.Between(80, width - 80),
             Phaser.Math.Between(135, height - 165),
-            chosenTexture
+            chosen
           );
 
-          fish.setScale(Phaser.Math.FloatBetween(0.075, 0.115));
+          fish.setScale(Phaser.Math.FloatBetween(0.073, 0.115));
           fish.setAlpha(Phaser.Math.FloatBetween(0.62, 0.9));
           fish.setDepth(15);
-          fish.setData("textureName", chosenTexture);
-          this.fishes.push(fish);
+          fish.setData("textureName", chosen);
+          fish.setData("panic", chosen.includes("legend") || chosen.includes("mythic") || chosen.includes("transcend"));
+          fish.setData("dirX", Phaser.Math.FloatBetween(-0.35, 0.35));
+          fish.setData("dirY", Phaser.Math.FloatBetween(-0.35, 0.35));
 
-          this.tweens.add({
-            targets: fish,
-            x: fish.x + Phaser.Math.Between(-150, 150),
-            y: fish.y + Phaser.Math.Between(-85, 85),
-            angle: Phaser.Math.Between(-10, 10),
-            duration: Phaser.Math.Between(2500, 7000),
-            yoyo: true,
-            repeat: -1,
-          });
+          this.fishes.push(fish);
 
           this.tweens.add({
             targets: fish,
@@ -322,89 +366,100 @@ function OceanGame() {
           });
         }
 
-        createFishingPanel() {
+        createBattlePanel() {
           const width = this.scale.width;
           const height = this.scale.height;
 
-          this.fishingPanel = this.add.container(width / 2, height / 2);
-          this.fishingPanel.setVisible(false);
-          this.fishingPanel.setDepth(120);
+          this.panel = this.add.container(width / 2, height / 2);
+          this.panel.setVisible(false);
+          this.panel.setDepth(130);
 
-          const bg = this.add.rectangle(0, 0, width * 0.9, 405, 0x020617, 0.96);
+          const bg = this.add.rectangle(0, 0, width * 0.92, 430, 0x020617, 0.96);
           bg.setStrokeStyle(5, 0x22d3ee);
 
-          const title = this.add.text(0, -165, "🎣 낚시 시작!", {
+          this.battleTitle = this.add.text(0, -175, "🎣 낚시 전투!", {
             fontSize: "34px",
             color: "#ffffff",
             fontStyle: "bold",
             stroke: "#000000",
             strokeThickness: 5,
           });
-          title.setOrigin(0.5);
+          this.battleTitle.setOrigin(0.5);
 
-          this.fishNameText = this.add.text(0, -118, "", {
-            fontSize: "22px",
+          this.fishNameText = this.add.text(0, -130, "", {
+            fontSize: "21px",
             color: "#fde047",
             align: "center",
             fontStyle: "bold",
             stroke: "#000000",
             strokeThickness: 4,
-            wordWrap: { width: width * 0.78 },
+            wordWrap: { width: width * 0.82 },
           });
           this.fishNameText.setOrigin(0.5);
 
-          const guide = this.add.text(0, -70, "바늘이 초록 구간에 들어왔을 때 낚시 버튼!", {
+          this.battleGuide = this.add.text(0, -86, "", {
             fontSize: "18px",
             color: "#cbd5e1",
             align: "center",
+            fontStyle: "bold",
             stroke: "#000000",
             strokeThickness: 4,
-            wordWrap: { width: width * 0.76 },
+            wordWrap: { width: width * 0.82 },
           });
-          guide.setOrigin(0.5);
+          this.battleGuide.setOrigin(0.5);
 
-          this.timingBar = this.add.rectangle(0, 12, width * 0.72, 34, 0x172554);
+          this.timingBar = this.add.rectangle(0, -20, width * 0.72, 32, 0x172554);
           this.timingBar.setStrokeStyle(4, 0xffffff, 0.55);
 
-          this.hitZone = this.add.rectangle(0, 12, width * 0.18, 48, 0x22c55e, 0.92);
+          this.hitZone = this.add.rectangle(0, -20, width * 0.18, 46, 0x22c55e, 0.92);
           this.hitZone.setStrokeStyle(3, 0xbbf7d0, 1);
 
-          this.pointer = this.add.rectangle(-width * 0.34, 12, 12, 76, 0xfacc15);
+          this.pointer = this.add.rectangle(-width * 0.34, -20, 12, 72, 0xfacc15);
           this.pointer.setStrokeStyle(2, 0xffffff, 0.9);
 
+          this.tensionBg = this.add.rectangle(0, 54, width * 0.72, 24, 0x1e293b);
+          this.tensionBg.setStrokeStyle(3, 0xffffff, 0.4);
+
+          this.tensionFill = this.add.rectangle(-width * 0.36, 54, width * 0.36, 24, 0x22c55e);
+          this.tensionFill.setOrigin(0, 0.5);
+
           this.resultBadge = this.add.image(0, 92, "result_good");
-          this.resultBadge.setScale(0.45);
+          this.resultBadge.setScale(0.42);
           this.resultBadge.setVisible(false);
 
-          this.resultText = this.add.text(0, 128, "", {
+          this.battleText = this.add.text(0, 126, "", {
             fontSize: "25px",
             color: "#fde047",
             fontStyle: "bold",
             align: "center",
             stroke: "#000000",
             strokeThickness: 4,
-            wordWrap: { width: width * 0.78 },
+            wordWrap: { width: width * 0.82 },
           });
-          this.resultText.setOrigin(0.5);
+          this.battleText.setOrigin(0.5);
 
-          const sub = this.add.text(0, 176, "저장됨: 골드 / EXP / 도감 / 상점 업그레이드", {
-            fontSize: "14px",
+          const sub = this.add.text(0, 184, "PC: WASD/방향키 이동, Space/Enter 낚시 · 모바일: 버튼 조작", {
+            fontSize: "13px",
             color: "#94a3b8",
             stroke: "#000000",
             strokeThickness: 3,
+            align: "center",
+            wordWrap: { width: width * 0.82 },
           });
           sub.setOrigin(0.5);
 
-          this.fishingPanel.add([
+          this.panel.add([
             bg,
-            title,
+            this.battleTitle,
             this.fishNameText,
-            guide,
+            this.battleGuide,
             this.timingBar,
             this.hitZone,
             this.pointer,
+            this.tensionBg,
+            this.tensionFill,
             this.resultBadge,
-            this.resultText,
+            this.battleText,
             sub,
           ]);
         }
@@ -412,8 +467,24 @@ function OceanGame() {
         refreshHud() {
           const { rod, engine, radar } = this.saveData.upgrades;
           this.hudText.setText(
-            `💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}\n🎣 낚싯대 Lv.${rod}  🚤 엔진 Lv.${engine}  📡 레이더 Lv.${radar}`
+            `💰 ${this.gold.toLocaleString()}G   ✨ EXP ${this.exp}   🐟 ${this.caught}\n🎣 Lv.${rod}  🚤 Lv.${engine}  📡 Lv.${radar}\nPC: WASD/방향키 이동, Space 낚시`
           );
+        }
+
+        showEvent(message: string, color = "#fde047") {
+          this.eventText.setText(message);
+          this.eventText.setColor(color);
+          this.eventText.setVisible(true);
+          this.eventText.setAlpha(1);
+          this.eventText.y = 118;
+
+          this.tweens.add({
+            targets: this.eventText,
+            y: 94,
+            alpha: 0,
+            duration: 1900,
+            onComplete: () => this.eventText.setVisible(false),
+          });
         }
 
         persist() {
@@ -421,6 +492,34 @@ function OceanGame() {
           this.saveData.exp = this.exp;
           this.saveData.caught = this.caught;
           saveGame(this.saveData);
+        }
+
+        makeFishSize(grade: string) {
+          const gradeBonus =
+            grade === "common" ? 1 :
+            grade === "rare" ? 1.25 :
+            grade === "epic" ? 1.6 :
+            grade === "legend" ? 2.2 :
+            grade === "mythic" ? 3.1 : 4.5;
+
+          const roll = Math.random();
+          const rank =
+            roll > 0.985 ? "괴물급" :
+            roll > 0.92 ? "초대형" :
+            roll > 0.72 ? "대형" :
+            roll > 0.28 ? "중형" : "소형";
+
+          const rankMult =
+            rank === "괴물급" ? 3.2 :
+            rank === "초대형" ? 2.2 :
+            rank === "대형" ? 1.45 :
+            rank === "중형" ? 1 : 0.72;
+
+          const cm = Math.round((25 + Math.random() * 70) * gradeBonus * rankMult * 10) / 10;
+          const kg = Math.round((cm * cm * 0.0009 + Math.random() * 3) * gradeBonus * 10) / 10;
+          const multiplier = Math.max(0.8, rankMult);
+
+          return { cm, kg, sizeRank: rank, multiplier };
         }
 
         onMove = (event: Event) => {
@@ -433,7 +532,7 @@ function OceanGame() {
           if (this.isResolving) return;
 
           if (this.isFishing) {
-            this.tryCatch();
+            this.handleBattleInput();
             return;
           }
 
@@ -456,14 +555,24 @@ function OceanGame() {
 
           this.isFishing = true;
           this.isResolving = false;
+          this.phase = "bite";
+          this.tension = 50;
+          this.reelProgress = 0;
+          this.battleTimer = 0;
           this.move = { x: 0, y: 0 };
           this.selectedFish = pickFish(regionId);
+          this.fishSize = this.makeFishSize(this.selectedFish.grade);
 
           const grade = gradeInfo[this.selectedFish.grade];
-          this.fishNameText.setText(`${grade.emoji} ${grade.name} 어종의 입질!`);
+
+          if (["legend", "mythic", "transcend"].includes(this.selectedFish.grade)) {
+            this.cameras.main.shake(260, 0.012);
+            this.showEvent(`${grade.emoji} 희귀한 기척이 느껴진다!`, grade.color);
+          }
+
+          this.fishNameText.setText(`${grade.emoji} ${grade.name} 입질!`);
           this.fishNameText.setColor(grade.color);
-          this.resultText.setText("");
-          this.resultText.setColor("#fde047");
+          this.battleText.setText("");
           this.resultBadge.setVisible(false);
 
           const width = this.scale.width;
@@ -473,34 +582,135 @@ function OceanGame() {
           this.pointer.x = -this.timingBar.width / 2;
           this.pointerDirection = 1;
 
-          this.fishingPanel.setVisible(true);
+          this.battleGuide.setText("1단계 입질: 초록 구간에서 낚시 버튼!");
+          this.panel.setVisible(true);
           this.fishText.setText("");
           this.catchHint.setText("");
           this.nearbySign.setVisible(false);
+          this.updateTensionBar();
         }
 
-        tryCatch() {
-          if (this.isResolving) return;
-          this.isResolving = true;
+        handleBattleInput() {
+          if (this.phase === "bite") {
+            this.checkBite();
+            return;
+          }
 
+          if (this.phase === "pull") {
+            this.checkPullInput();
+            return;
+          }
+
+          if (this.phase === "reel") {
+            this.reelProgress += 14 + this.saveData.upgrades.rod * 2;
+            this.tension += 7;
+            this.battleText.setText(`릴 감기! ${Math.min(100, Math.floor(this.reelProgress))}%`);
+            this.updateTensionBar();
+
+            if (this.reelProgress >= 100) {
+              this.finishCatch(true, "perfect");
+            }
+
+            if (this.tension >= 100) {
+              this.finishCatch(false, "miss");
+            }
+          }
+        }
+
+        checkBite() {
           const center = this.pointer.x;
           const left = this.hitZone.x - this.hitZone.width / 2;
           const right = this.hitZone.x + this.hitZone.width / 2;
           const perfectRange = Math.max(12, this.hitZone.width * 0.18);
           const perfect = Math.abs(center - this.hitZone.x) <= perfectRange;
           const success = center >= left && center <= right;
+
+          if (!success) {
+            this.finishCatch(false, "miss");
+            return;
+          }
+
+          this.phase = "pull";
+          this.resultBadge.setVisible(false);
+          this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
+          this.battleGuide.setText(`2단계 저항: ${this.requiredDirection} 방향을 누른 뒤 낚시 버튼!`);
+          this.battleText.setText(perfect ? "🌟 완벽한 입질! 저항을 받아내자!" : "✅ 입질 성공! 저항을 받아내자!");
+          this.tension += perfect ? -8 : 4;
+          this.updateTensionBar();
+        }
+
+        getCurrentInputDirection() {
+          if (this.keys.left?.isDown || this.keys.left2?.isDown || this.move.x < 0) return "LEFT";
+          if (this.keys.right?.isDown || this.keys.right2?.isDown || this.move.x > 0) return "RIGHT";
+          if (this.keys.up?.isDown || this.keys.up2?.isDown || this.move.y < 0) return "UP";
+          if (this.keys.down?.isDown || this.keys.down2?.isDown || this.move.y > 0) return "DOWN";
+          return "";
+        }
+
+        checkPullInput() {
+          const input = this.getCurrentInputDirection();
+
+          if (input === this.requiredDirection) {
+            this.phase = "reel";
+            this.battleGuide.setText("3단계 릴링: 낚시 버튼을 연타하되 장력이 터지지 않게!");
+            this.battleText.setText("🎣 릴링 시작!");
+            this.tension -= 18;
+            this.updateTensionBar();
+          } else {
+            this.tension += 24;
+            this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
+            this.battleGuide.setText(`방향이 틀렸다! ${this.requiredDirection} 방향 후 낚시 버튼!`);
+            this.battleText.setText("⚠️ 장력이 올라간다!");
+
+            if (this.tension >= 100) {
+              this.finishCatch(false, "miss");
+            }
+
+            this.updateTensionBar();
+          }
+        }
+
+        updateTensionBar() {
+          this.tension = Phaser.Math.Clamp(this.tension, 0, 100);
+          const maxWidth = this.scale.width * 0.72;
+          this.tensionFill.width = maxWidth * (this.tension / 100);
+
+          if (this.tension >= 80) this.tensionFill.fillColor = 0xef4444;
+          else if (this.tension >= 55) this.tensionFill.fillColor = 0xfacc15;
+          else this.tensionFill.fillColor = 0x22c55e;
+        }
+
+        finishCatch(success: boolean, quality: "perfect" | "good" | "miss") {
+          if (this.isResolving) return;
+          this.isResolving = true;
+          this.phase = "result";
+
           const grade = gradeInfo[this.selectedFish.grade];
 
           if (success) {
-            const bonus = perfect ? 1.5 : 1;
-            const goldGain = Math.floor(this.selectedFish.price * bonus);
-            const expGain = Math.floor(this.selectedFish.exp * bonus);
+            const qualityBonus = quality === "perfect" ? 1.35 : 1;
+            const sizeBonus = this.fishSize.multiplier;
+            const goldGain = Math.floor(this.selectedFish.price * qualityBonus * sizeBonus);
+            const expGain = Math.floor(this.selectedFish.exp * qualityBonus * Math.max(1, sizeBonus * 0.7));
 
             this.gold += goldGain;
             this.exp += expGain;
             this.caught += 1;
+
             this.saveData.collection[this.selectedFish.id] =
               (this.saveData.collection[this.selectedFish.id] || 0) + 1;
+
+            const oldRecord = this.saveData.records?.[this.selectedFish.id];
+            if (!this.saveData.records) this.saveData.records = {};
+
+            const isRecord = !oldRecord || this.fishSize.cm > oldRecord.cm;
+            if (isRecord) {
+              this.saveData.records[this.selectedFish.id] = {
+                cm: this.fishSize.cm,
+                kg: this.fishSize.kg,
+              };
+            }
+
             this.persist();
             this.refreshHud();
 
@@ -525,12 +735,17 @@ function OceanGame() {
             this.targetFish = null;
             this.canFish = false;
 
-            this.resultBadge.setTexture(perfect ? "result_perfect" : "result_good");
+            this.resultBadge.setTexture(quality === "perfect" ? "result_perfect" : "result_good");
             this.resultBadge.setVisible(true);
-            this.resultText.setColor(perfect ? "#fde047" : "#86efac");
-            this.resultText.setText(
-              `${grade.emoji} ${this.selectedFish.name}\n+${goldGain.toLocaleString()}G / +${expGain}EXP\n도감 저장 완료`
+            this.battleText.setColor(quality === "perfect" ? "#fde047" : "#86efac");
+            this.battleText.setText(
+              `${grade.emoji} ${this.selectedFish.name}\n${this.fishSize.sizeRank} · ${this.fishSize.cm}cm · ${this.fishSize.kg}kg\n+${goldGain.toLocaleString()}G / +${expGain}EXP${isRecord ? "\n🏆 신기록!" : ""}`
             );
+
+            if (this.fishSize.sizeRank === "괴물급") {
+              this.cameras.main.shake(320, 0.015);
+              this.showEvent("🐋 괴물급 사이즈!", "#fde047");
+            }
           } else {
             if (this.targetFish) {
               this.targetFish.destroy();
@@ -540,40 +755,82 @@ function OceanGame() {
 
             this.targetFish = null;
             this.canFish = false;
-
             this.resultBadge.setTexture("result_miss");
             this.resultBadge.setVisible(true);
-            this.resultText.setColor("#fca5a5");
-            this.resultText.setText("물고기가 도망갔습니다.");
+            this.battleText.setColor("#fca5a5");
+            this.battleText.setText("줄이 풀렸다!\n물고기가 도망갔습니다.");
           }
 
-          this.time.delayedCall(1550, () => {
-            this.fishingPanel.setVisible(false);
+          this.time.delayedCall(1850, () => {
+            this.panel.setVisible(false);
             this.isFishing = false;
             this.isResolving = false;
-            this.resultText.setText("");
+            this.phase = "idle";
+            this.battleText.setText("");
             this.resultBadge.setVisible(false);
           });
         }
 
+        handleKeyboardInput() {
+          if (!this.keys) return;
+
+          const x =
+            (this.keys.left?.isDown || this.keys.left2?.isDown ? -1 : 0) +
+            (this.keys.right?.isDown || this.keys.right2?.isDown ? 1 : 0);
+
+          const y =
+            (this.keys.up?.isDown || this.keys.up2?.isDown ? -1 : 0) +
+            (this.keys.down?.isDown || this.keys.down2?.isDown ? 1 : 0);
+
+          if (!this.isFishing && (x !== 0 || y !== 0)) {
+            this.move = { x, y };
+          }
+
+          if (Phaser.Input.Keyboard.JustDown(this.keys.fish) || Phaser.Input.Keyboard.JustDown(this.keys.fish2)) {
+            this.onFish();
+          }
+        }
+
         update(_time: number, delta: number) {
           this.animTimer += delta;
+          this.handleKeyboardInput();
 
           if (this.isFishing) {
             if (!this.isResolving) {
-              const speed = gradeInfo[this.selectedFish.grade].speed;
-              const limit = this.timingBar.width / 2;
+              if (this.phase === "bite") {
+                const speed = gradeInfo[this.selectedFish.grade].speed;
+                const limit = this.timingBar.width / 2;
 
-              this.pointer.x += this.pointerDirection * speed;
+                this.pointer.x += this.pointerDirection * speed;
 
-              if (this.pointer.x >= limit) {
-                this.pointer.x = limit;
-                this.pointerDirection = -1;
+                if (this.pointer.x >= limit) {
+                  this.pointer.x = limit;
+                  this.pointerDirection = -1;
+                }
+
+                if (this.pointer.x <= -limit) {
+                  this.pointer.x = -limit;
+                  this.pointerDirection = 1;
+                }
               }
 
-              if (this.pointer.x <= -limit) {
-                this.pointer.x = -limit;
-                this.pointerDirection = 1;
+              if (this.phase === "pull") {
+                this.battleTimer += delta;
+                this.tension += 0.018 * delta;
+                this.updateTensionBar();
+
+                if (this.battleTimer > 4200 || this.tension >= 100) {
+                  this.finishCatch(false, "miss");
+                }
+              }
+
+              if (this.phase === "reel") {
+                this.tension -= 0.018 * delta;
+                this.reelProgress -= 0.006 * delta;
+                this.reelProgress = Phaser.Math.Clamp(this.reelProgress, 0, 100);
+                this.updateTensionBar();
+
+                if (this.tension <= 0) this.tension = 4;
               }
             }
 
@@ -597,6 +854,50 @@ function OceanGame() {
             this.boat.setTexture(Math.floor(this.animTimer / 550) % 2 === 0 ? "boat_idle_1" : "boat_idle_2");
           }
 
+          this.updateFishAI(delta);
+          this.detectFish();
+        }
+
+        updateFishAI(delta: number) {
+          const width = this.scale.width;
+          const height = this.scale.height;
+
+          for (const fish of this.fishes) {
+            const dist = Phaser.Math.Distance.Between(this.boat.x, this.boat.y, fish.x, fish.y);
+            const panic = fish.getData("panic");
+
+            let dx = fish.getData("dirX") || 0;
+            let dy = fish.getData("dirY") || 0;
+
+            if (dist < (panic ? 190 : 145)) {
+              const angle = Phaser.Math.Angle.Between(this.boat.x, this.boat.y, fish.x, fish.y);
+              dx = Math.cos(angle) * (panic ? 2.6 : 1.3);
+              dy = Math.sin(angle) * (panic ? 2.6 : 1.3);
+              fish.setAlpha(1);
+
+              if (panic && Math.random() < 0.012) {
+                this.showEvent("⚠️ 희귀 물고기가 도망친다!", "#fb7185");
+              }
+            } else if (Math.random() < 0.008) {
+              dx = Phaser.Math.FloatBetween(-0.45, 0.45);
+              dy = Phaser.Math.FloatBetween(-0.45, 0.45);
+              fish.setData("dirX", dx);
+              fish.setData("dirY", dy);
+            }
+
+            fish.x += dx * (delta / 16.6);
+            fish.y += dy * (delta / 16.6);
+
+            fish.x = Phaser.Math.Clamp(fish.x, 60, width - 60);
+            fish.y = Phaser.Math.Clamp(fish.y, 122, height - 140);
+
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+              fish.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+            }
+          }
+        }
+
+        detectFish() {
           this.canFish = false;
           this.targetFish = null;
 
@@ -609,9 +910,8 @@ function OceanGame() {
               this.canFish = true;
               this.targetFish = fish;
               this.fishText.setText("🎣 물고기 실루엣 발견!");
-              this.catchHint.setText("오른쪽 🎣 버튼을 누르세요");
+              this.catchHint.setText("PC: Space/Enter · 모바일: 오른쪽 🎣 버튼");
               this.nearbySign.setVisible(true);
-              this.tweens.killTweensOf(fish);
               fish.setTint(0xffffaa);
               fish.setAlpha(1);
               break;
@@ -639,7 +939,7 @@ function OceanGame() {
         height: window.innerHeight,
         parent: gameRef.current!,
         backgroundColor: "#082f49",
-        scene: RegionalFishingScene,
+        scene: FunFishingScene,
         scale: {
           mode: Phaser.Scale.RESIZE,
           autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -674,19 +974,14 @@ function OceanGame() {
     <main className="relative h-screen w-screen overflow-hidden bg-black">
       <div ref={gameRef} className="h-full w-full" />
 
-      <a
-        href="/regions"
-        className="absolute left-4 top-4 z-50 rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur"
-      >
+      <a href="/regions" className="absolute left-4 top-4 z-50 rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur">
         ← 지역
       </a>
 
-      <a
-        href="/collection"
-        className="absolute right-4 top-4 z-50 rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur"
-      >
-        📖 도감
-      </a>
+      <div className="absolute right-4 top-4 z-50 flex gap-2">
+        <a href="/collection" className="rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur">📖 도감</a>
+        <a href="/shop" className="rounded-2xl bg-black/60 px-4 py-3 text-sm font-black text-white backdrop-blur">🏪 상점</a>
+      </div>
 
       <div className="absolute bottom-8 left-5 z-50 grid grid-cols-3 gap-2">
         <div />
