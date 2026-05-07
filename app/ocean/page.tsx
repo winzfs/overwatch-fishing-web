@@ -107,6 +107,7 @@ function OceanGame() {
         hitZone: any;
         pointer: any;
         battleTitle: any;
+        fishNameText: any;
         battleGuide: any;
         battleText: any;
         resultBadge: any;
