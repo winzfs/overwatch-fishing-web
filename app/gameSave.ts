@@ -266,6 +266,32 @@ export function itemSellValue(item: BagItem, save: SaveData) {
   return Math.floor(item.baseValue * (fresh / 100));
 }
 
+export function getPlayerLevel(save: SaveData) {
+  const exp = Math.max(0, save.exp || 0);
+  return Math.floor(Math.sqrt(exp / 120)) + 1;
+}
+
+export function getNextLevelExp(level: number) {
+  return Math.pow(Math.max(1, level), 2) * 120;
+}
+
+export function getRegionRequiredLevel(regionId: string) {
+  const table: Record<string, number> = {
+    busan: 1,
+    incheon: 3,
+    jeju: 6,
+    dokdo: 10,
+    deepsea: 15,
+    antarctic: 20,
+  };
+
+  return table[regionId] ?? 1;
+}
+
+export function isRegionUnlocked(regionId: string, save: SaveData) {
+  return getPlayerLevel(save) >= getRegionRequiredLevel(regionId);
+}
+
 export const upgradeList = [
   { key: "cargo", emoji: "🎒", name: "적재함", desc: "가방 최대 무게 증가", base: 2600, max: 8 },
   { key: "fridge", emoji: "🧊", name: "냉장고", desc: "신선도 감소 속도 완화", base: 3200, max: 8 },

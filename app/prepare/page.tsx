@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { regions } from "../../data/fishingData";
-import { SaveData, defaultSave, loadSave, saveGame, getDailySeaEvent, fuelLimit, cargoLimit, bagWeight } from "../gameSave";
+import {
+  SaveData,
+  defaultSave,
+  loadSave,
+  saveGame,
+  getDailySeaEvent,
+  fuelLimit,
+  cargoLimit,
+  bagWeight,
+  getPlayerLevel,
+  getNextLevelExp,
+  getRegionRequiredLevel,
+  isRegionUnlocked,
+} from "../gameSave";
 
 const baitOptions = [
   { id: "basic", name: "기본 미끼", desc: "안정적인 기본 출항", price: 0 },
@@ -25,6 +38,12 @@ export default function PreparePage() {
   }, []);
 
   function start() {
+    if (!isRegionUnlocked(selectedRegion, save)) {
+      const need = getRegionRequiredLevel(selectedRegion);
+      setMessage(`이 지역은 Lv.${need}부터 출항할 수 있습니다.`);
+      return;
+    }
+
     const baitInfo = baitOptions.find((b) => b.id === bait)!;
     const iceCost = ice * 350;
     const totalCost = baitInfo.price + iceCost;
@@ -46,6 +65,8 @@ export default function PreparePage() {
 
   const region = regions.find((r) => r.id === selectedRegion) || regions[0];
   const event = getDailySeaEvent(selectedRegion);
+  const playerLevel = getPlayerLevel(save);
+  const nextExp = getNextLevelExp(playerLevel);
   const baitInfo = baitOptions.find((b) => b.id === bait)!;
   const totalCost = baitInfo.price + ice * 350;
 
@@ -54,8 +75,15 @@ export default function PreparePage() {
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between">
           <a href="/harbor" className="rounded-xl bg-white/10 px-4 py-2 font-bold">← 항구</a>
-          <button onClick={start} className="rounded-xl bg-cyan-400 px-5 py-3 font-black text-slate-950">
-            🚤 출항
+          <button
+            onClick={start}
+            className={`rounded-xl px-5 py-3 font-black ${
+              isRegionUnlocked(selectedRegion, save)
+                ? "bg-cyan-400 text-slate-950"
+                : "bg-red-500/30 text-red-100"
+            }`}
+          >
+            {isRegionUnlocked(selectedRegion, save) ? "🚤 출항" : `🔒 Lv.${getRegionRequiredLevel(selectedRegion)} 필요`}
           </button>
         </div>
 
@@ -68,12 +96,27 @@ export default function PreparePage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {regions.map((r) => {
                 const e = getDailySeaEvent(r.id);
+                const requiredLevel = getRegionRequiredLevel(r.id);
+                const unlocked = playerLevel >= requiredLevel;
                 return (
                   <button
                     key={r.id}
-                    onClick={() => setSelectedRegion(r.id)}
+                    onClick={() => {
+                      setSelectedRegion(r.id);
+                      if (!unlocked) {
+                        setMessage(`${r.name}은 Lv.${requiredLevel}부터 출항할 수 있습니다.`);
+                      } else {
+                        setMessage("");
+                      }
+                    }}
                     className={`rounded-3xl border p-5 text-left active:scale-[0.98] ${
-                      selectedRegion === r.id ? "border-cyan-300 bg-cyan-300/10" : "border-white/10 bg-white/5"
+                      selectedRegion === r.id
+                        ? unlocked
+                          ? "border-cyan-300 bg-cyan-300/10"
+                          : "border-red-300 bg-red-500/10"
+                        : unlocked
+                        ? "border-white/10 bg-white/5"
+                        : "border-white/5 bg-black/35 opacity-70"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -81,9 +124,16 @@ export default function PreparePage() {
                         <div className="text-4xl">{r.emoji}</div>
                         <h3 className="mt-3 text-xl font-black">{r.name}</h3>
                       </div>
-                      <span className="rounded-full bg-black/35 px-3 py-1 text-xs font-black">{e.emoji} {e.name}</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-black ${unlocked ? "bg-black/35" : "bg-red-500/25 text-red-100"}`}>
+                        {unlocked ? `${e.emoji} ${e.name}` : `🔒 Lv.${requiredLevel}`}
+                      </span>
                     </div>
                     <p className="mt-3 text-sm text-slate-300">{r.desc}</p>
+                    {!unlocked && (
+                      <p className="mt-3 rounded-xl bg-red-500/15 px-3 py-2 text-xs font-bold text-red-100">
+                        현재 Lv.{playerLevel} · Lv.{requiredLevel} 필요
+                      </p>
+                    )}
                   </button>
                 );
               })}
@@ -91,6 +141,18 @@ export default function PreparePage() {
           </section>
 
           <aside>
+            <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
+              <p className="text-sm font-bold text-cyan-100">내 항해 레벨</p>
+              <p className="mt-1 text-3xl font-black text-cyan-300">Lv.{playerLevel}</p>
+              <p className="mt-2 text-xs text-slate-300">EXP {save.exp || 0} / {nextExp}</p>
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/40">
+                <div
+                  className="h-full bg-cyan-400"
+                  style={{ width: `${Math.min(100, ((save.exp || 0) / nextExp) * 100)}%` }}
+                />
+              </div>
+            </div>
+
             <div className={`rounded-3xl border border-white/10 bg-gradient-to-br ${region.theme} p-5`}>
               <h2 className="text-2xl font-black">{region.emoji} {region.name}</h2>
               <p className="mt-3 text-slate-200">{region.desc}</p>
