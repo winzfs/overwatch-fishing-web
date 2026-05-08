@@ -72,8 +72,8 @@ export function normalizeSave(data: Partial<SaveData>): SaveData {
     bag: data.bag || [],
     records: data.records || {},
     prep: {
-      ...base.prep,
-      ...(data.prep || {}),
+      bait: data.prep?.bait ?? base.prep.bait,
+      ice: data.prep?.ice ?? base.prep.ice,
     },
   };
 }
