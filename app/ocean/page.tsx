@@ -191,6 +191,8 @@ function OceanGame() {
         fishNameText: any;
         battleGuide: any;
         battleText: any;
+        directionArrow: any;
+        directionLabel: any;
         timingBar: any;
         hitZone: any;
         pointer: any;
@@ -244,6 +246,11 @@ function OceanGame() {
           this.load.image("fish_legend", "/assets/sprites/fish_shadow_legend.png");
           this.load.image("fish_mythic", "/assets/sprites/fish_shadow_mythic.png");
           this.load.image("fish_transcend", "/assets/sprites/fish_shadow_transcend.png");
+
+          this.load.image("arrow_left", "/ui/arrows/left.png");
+          this.load.image("arrow_right", "/ui/arrows/right.png");
+          this.load.image("arrow_up", "/ui/arrows/up.png");
+          this.load.image("arrow_down", "/ui/arrows/down.png");
 
           this.load.image("burst_rare", "/assets/effects/burst_rare.png");
           this.load.image("burst_epic", "/assets/effects/burst_epic.png");
@@ -422,23 +429,40 @@ function OceanGame() {
         createBattlePanel() {
           const width = this.scale.width, height = this.scale.height;
           this.panel = this.add.container(width / 2, height / 2).setScrollFactor(0).setVisible(false).setDepth(130);
-          const bg = this.add.rectangle(0, 0, width * 0.92, 430, 0x020617, 0.96);
+          const bg = this.add.rectangle(0, 0, width * 0.92, 480, 0x020617, 0.96);
           bg.setStrokeStyle(5, 0x22d3ee);
-          this.battleTitle = this.add.text(0, -175, "🎣 낚시 전투!", { fontSize: "34px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
-          this.fishNameText = this.add.text(0, -130, "", { fontSize: "21px", color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-          this.battleGuide = this.add.text(0, -86, "", { fontSize: "18px", color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-          this.timingBar = this.add.rectangle(0, -20, width * 0.72, 32, 0x172554);
+          this.battleTitle = this.add.text(0, -210, "🎣 낚시 전투!", { fontSize: "34px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
+          this.fishNameText = this.add.text(0, -168, "", { fontSize: "21px", color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
+          this.battleGuide = this.add.text(0, -130, "", { fontSize: "18px", color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
+          this.directionArrow = this.add.image(0, -6, "arrow_left");
+          this.directionArrow.setDisplaySize(230, 230);
+          this.directionArrow.setVisible(false);
+          this.directionArrow.setDepth(5);
+
+          this.directionLabel = this.add.text(0, 112, "", {
+            fontSize: "34px",
+            color: "#ffffff",
+            align: "center",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 8,
+          }).setOrigin(0.5);
+          this.directionLabel.setVisible(false);
+
+          this.timingBar = this.add.rectangle(0, 18, width * 0.72, 32, 0x172554);
           this.timingBar.setStrokeStyle(4, 0xffffff, 0.55);
-          this.hitZone = this.add.rectangle(0, -20, width * 0.18, 46, 0x22c55e, 0.92);
+          this.hitZone = this.add.rectangle(0, 18, width * 0.18, 46, 0x22c55e, 0.92);
           this.hitZone.setStrokeStyle(3, 0xbbf7d0, 1);
-          this.pointer = this.add.rectangle(-width * 0.34, -20, 12, 72, 0xfacc15);
+          this.pointer = this.add.rectangle(-width * 0.34, 18, 12, 72, 0xfacc15);
           this.pointer.setStrokeStyle(2, 0xffffff, 0.9);
           const tensionBg = this.add.rectangle(0, 54, width * 0.72, 24, 0x1e293b);
           tensionBg.setStrokeStyle(3, 0xffffff, 0.4);
           this.tensionFill = this.add.rectangle(-width * 0.36, 54, width * 0.36, 24, 0x22c55e).setOrigin(0, 0.5);
           this.battleText = this.add.text(0, 126, "", { fontSize: "23px", color: "#fde047", fontStyle: "bold", align: "center", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
           const sub = this.add.text(0, 184, "가방에 담긴 물고기는 항구에서 판매됩니다.", { fontSize: "13px", color: "#94a3b8", stroke: "#000000", strokeThickness: 3, align: "center", wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-          this.panel.add([bg, this.battleTitle, this.fishNameText, this.battleGuide, this.timingBar, this.hitZone, this.pointer, tensionBg, this.tensionFill,  this.battleText, sub]);
+          this.panel.add([bg, this.battleTitle, this.fishNameText, this.battleGuide,
+            this.directionArrow,
+            this.directionLabel, this.timingBar, this.hitZone, this.pointer, tensionBg, this.tensionFill,  this.battleText, sub]);
         }
 
         refreshHud() {
@@ -531,6 +555,7 @@ function OceanGame() {
           this.hitZone.x = Phaser.Math.Between(-Math.floor(width * 0.25), Math.floor(width * 0.25));
           this.pointer.x = -this.timingBar.width / 2;
           this.pointerDirection = 1;
+          this.hideDirectionPrompt();
           this.battleGuide.setText("1단계 입질: 초록 구간에서 낚시 버튼! PERFECT면 장력 보너스");
           this.panel.setVisible(true);
           this.hintText.setText("");
@@ -574,17 +599,55 @@ function OceanGame() {
           this.pullRound = 1;
           this.battleTimer = 0;
           this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
-          this.battleGuide.setText(`2단계 저항 ${this.pullRound}/${this.maxPullRounds}\n${this.formatDirection(this.requiredDirection)} + 🎣`);
+          this.showDirectionPrompt(this.requiredDirection, `2단계 저항 ${this.pullRound}/${this.maxPullRounds}`);
           this.battleText.setText(perfect ? "🌟 PERFECT! 장력이 낮아졌다!" : "✅ 입질 성공! 저항을 받아내자!");
           this.tension += perfect ? -14 : 6;
           this.updateTensionBar();
         }
 
+        getArrowTexture(direction: string) {
+          if (direction === "LEFT") return "arrow_left";
+          if (direction === "RIGHT") return "arrow_right";
+          if (direction === "UP") return "arrow_up";
+          if (direction === "DOWN") return "arrow_down";
+          return "arrow_left";
+        }
+
+        showDirectionPrompt(direction: string, prefix = "방향 입력") {
+          const label = this.formatDirection(direction);
+
+          if (this.directionArrow) {
+            this.directionArrow.setTexture(this.getArrowTexture(direction));
+            this.directionArrow.setDisplaySize(250, 250);
+            this.directionArrow.setVisible(true);
+            this.tweens.add({
+              targets: this.directionArrow,
+              scaleX: 1.12,
+              scaleY: 1.12,
+              duration: 240,
+              yoyo: true,
+              repeat: 1,
+            });
+          }
+
+          if (this.directionLabel) {
+            this.directionLabel.setText(`${label}\n+ 🎣`);
+            this.directionLabel.setVisible(true);
+          }
+
+          this.battleGuide.setText(prefix);
+        }
+
+        hideDirectionPrompt() {
+          if (this.directionArrow) this.directionArrow.setVisible(false);
+          if (this.directionLabel) this.directionLabel.setVisible(false);
+        }
+
         formatDirection(direction: string) {
-          if (direction === "LEFT") return "⬅️  왼쪽  ⬅️";
-          if (direction === "RIGHT") return "➡️  오른쪽  ➡️";
-          if (direction === "UP") return "⬆️  위쪽  ⬆️";
-          if (direction === "DOWN") return "⬇️  아래쪽  ⬇️";
+          if (direction === "LEFT") return "왼쪽";
+          if (direction === "RIGHT") return "오른쪽";
+          if (direction === "UP") return "위쪽";
+          if (direction === "DOWN") return "아래쪽";
           return direction;
         }
 
@@ -606,11 +669,12 @@ function OceanGame() {
               this.battleTimer = 0;
               const dirs = ["LEFT", "RIGHT", "UP", "DOWN"].filter((d) => d !== this.requiredDirection);
               this.requiredDirection = Phaser.Utils.Array.GetRandom(dirs);
-              this.battleGuide.setText(`2단계 저항 ${this.pullRound}/${this.maxPullRounds}\n${this.formatDirection(this.requiredDirection)} + 🎣`);
+              this.showDirectionPrompt(this.requiredDirection, `2단계 저항 ${this.pullRound}/${this.maxPullRounds}`);
               this.battleText.setText("✅ 저항을 받아냈다! 다음 방향!");
             } else {
               this.phase = "reel";
               this.battleTimer = 0;
+              this.hideDirectionPrompt();
               this.battleGuide.setText("3단계 릴링: 낚시 버튼을 연타하되 장력이 터지지 않게!");
               this.battleText.setText("🎣 릴링 시작!");
               this.tension -= 12;
@@ -621,7 +685,7 @@ function OceanGame() {
               this.selectedFish.grade === "legend" ? 28 : 24;
             this.tension += penalty;
             this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
-            this.battleGuide.setText(`방향이 틀렸다!\n${this.formatDirection(this.requiredDirection)} + 🎣`);
+            this.showDirectionPrompt(this.requiredDirection, "방향이 틀렸다!");
             this.battleText.setText("⚠️ 장력이 크게 올라간다!");
             if (this.tension >= 100) this.finishCatch(false, "miss");
           }
