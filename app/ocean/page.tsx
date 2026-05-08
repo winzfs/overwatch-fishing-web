@@ -434,8 +434,8 @@ function OceanGame() {
           this.battleTitle = this.add.text(0, -210, "🎣 낚시 전투!", { fontSize: "34px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
           this.fishNameText = this.add.text(0, -168, "", { fontSize: "21px", color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
           this.battleGuide = this.add.text(0, -130, "", { fontSize: "18px", color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-          this.directionArrow = this.add.image(0, -46, "arrow_left");
-          this.directionArrow.setDisplaySize(120, 120);
+          this.directionArrow = this.add.image(0, -6, "arrow_left");
+          this.directionArrow.setDisplaySize(140, 140);
           this.directionArrow.setVisible(false);
           this.directionArrow.setDepth(5);
 
@@ -618,7 +618,7 @@ function OceanGame() {
 
           if (this.directionArrow) {
             this.directionArrow.setTexture(this.getArrowTexture(direction));
-            this.directionArrow.setDisplaySize(120, 120);
+            this.directionArrow.setDisplaySize(140, 140);
             this.directionArrow.setVisible(true);
             this.tweens.add({
               targets: this.directionArrow,
