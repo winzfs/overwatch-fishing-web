@@ -1099,10 +1099,6 @@ function OceanGame() {
   }
 
   function releaseMove() {
-    stopMove();
-  }
-
-  function releaseMove() {
     setStick({ x: 0, y: 0 });
     stopMove();
   }
