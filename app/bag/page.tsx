@@ -36,7 +36,7 @@ export default function BagPage() {
         <div className="flex items-center justify-between gap-2">
           <a href="/harbor" className="rounded-xl bg-white/10 px-4 py-2 font-bold">← 항구</a>
           <div className="flex gap-2">
-            <a href={lastOceanUrl} className="rounded-xl bg-cyan-400 px-4 py-2 font-black text-slate-950">🌊 바다로</a>
+            <a href={lastOceanUrl} className="rounded-xl bg-cyan-400 px-4 py-2 font-black text-slate-950">🌊 바다로 돌아가기</a>
             <a href="/prepare" className="rounded-xl bg-white/10 px-4 py-2 font-bold">🚤 출항</a>
           </div>
         </div>
