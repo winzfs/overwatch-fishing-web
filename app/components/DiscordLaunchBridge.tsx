@@ -48,10 +48,12 @@ export default function DiscordLaunchBridge() {
       localStorage.setItem("discord-launch-token", token);
 
       const parsed = parseDiscordLaunch(token);
+
       if (parsed) {
         localStorage.setItem("discord-user-id", parsed.user_id || "");
         localStorage.setItem("discord-display-name", parsed.display_name || parsed.username || "");
         localStorage.setItem("discord-guild-id", parsed.guild_id || "");
+        localStorage.setItem("discord-channel-id", parsed.channel_id || "");
         setInfo(parsed);
       }
 
@@ -60,13 +62,15 @@ export default function DiscordLaunchBridge() {
       return;
     }
 
-    const savedName = localStorage.getItem("discord-display-name");
     const savedUserId = localStorage.getItem("discord-user-id");
+    const savedName = localStorage.getItem("discord-display-name");
+    const savedGuildId = localStorage.getItem("discord-guild-id");
 
     if (savedUserId || savedName) {
       setInfo({
         user_id: savedUserId || "",
         display_name: savedName || "",
+        guild_id: savedGuildId || "",
       });
     }
   }, []);
@@ -74,7 +78,7 @@ export default function DiscordLaunchBridge() {
   if (!info?.display_name && !info?.user_id) return null;
 
   return (
-    <div className="fixed left-1/2 top-3 z-[300] -translate-x-1/2 rounded-full border border-cyan-300/30 bg-slate-950/80 px-4 py-2 text-xs font-black text-cyan-100 shadow-xl backdrop-blur">
+    <div className="fixed left-1/2 top-3 z-[300] -translate-x-1/2 rounded-full border border-cyan-300/30 bg-slate-950/85 px-4 py-2 text-xs font-black text-cyan-100 shadow-xl backdrop-blur">
       디스코드 연결됨 · {info.display_name || info.username || info.user_id}
     </div>
   );
