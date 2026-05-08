@@ -32,10 +32,20 @@ export type SaveData = {
     bait: "basic" | "rare" | "heavy";
     ice: number;
   };
+<<<<<<< HEAD
+=======
+  totalSold?: number;
+  legendaryCaught?: number;
+>>>>>>> e89207d (fix supabase save and rare alerts)
 };
 
 export const SAVE_KEY = "overwatch-fishing-save-v1";
 
+<<<<<<< HEAD
+=======
+let saveSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+>>>>>>> e89207d (fix supabase save and rare alerts)
 export function defaultSave(): SaveData {
   return {
     gold: 3000,
@@ -56,11 +66,20 @@ export function defaultSave(): SaveData {
       bait: "basic",
       ice: 0,
     },
+<<<<<<< HEAD
+=======
+    totalSold: 0,
+    legendaryCaught: 0,
+>>>>>>> e89207d (fix supabase save and rare alerts)
   };
 }
 
 export function normalizeSave(data: Partial<SaveData>): SaveData {
   const base = defaultSave();
+<<<<<<< HEAD
+=======
+
+>>>>>>> e89207d (fix supabase save and rare alerts)
   return {
     ...base,
     ...data,
@@ -75,6 +94,11 @@ export function normalizeSave(data: Partial<SaveData>): SaveData {
       bait: data.prep?.bait ?? "basic",
       ice: data.prep?.ice ?? 0,
     },
+<<<<<<< HEAD
+=======
+    totalSold: data.totalSold ?? 0,
+    legendaryCaught: data.legendaryCaught ?? 0,
+>>>>>>> e89207d (fix supabase save and rare alerts)
   };
 }
 
@@ -90,9 +114,151 @@ export function loadSave(): SaveData {
   }
 }
 
+<<<<<<< HEAD
 export function saveGame(data: SaveData) {
   if (typeof window === "undefined") return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(normalizeSave(data)));
+=======
+function getOldSaveBeforeWrite(): SaveData {
+  if (typeof window === "undefined") return defaultSave();
+
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return defaultSave();
+    return normalizeSave(JSON.parse(raw));
+  } catch {
+    return defaultSave();
+  }
+}
+
+export function saveGame(data: SaveData) {
+  if (typeof window === "undefined") return;
+
+  const previous = getOldSaveBeforeWrite();
+  const normalized = normalizeSave(data);
+
+  localStorage.setItem(SAVE_KEY, JSON.stringify(normalized));
+
+  detectAndSendRareCatchAlert(previous, normalized);
+  queueServerSave(normalized);
+}
+
+export function getDiscordUserId() {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("discord-user-id") || "";
+}
+
+export function getDiscordDisplayName() {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("discord-display-name") || "";
+}
+
+function detectAndSendRareCatchAlert(previous: SaveData, next: SaveData) {
+  const discordId = getDiscordUserId();
+  if (!discordId) return;
+
+  const oldIds = new Set((previous.bag || []).map((item) => item.uid));
+  const newRareItems = (next.bag || []).filter((item) => {
+    return !oldIds.has(item.uid) && ["legend", "mythic", "transcend"].includes(item.grade);
+  });
+
+  if (newRareItems.length === 0) return;
+
+  const patched: SaveData = {
+    ...next,
+    legendaryCaught: (next.legendaryCaught || 0) + newRareItems.length,
+  };
+
+  localStorage.setItem(SAVE_KEY, JSON.stringify(patched));
+
+  for (const item of newRareItems) {
+    sendRareCatchAlert(item, patched).catch(() => {});
+  }
+}
+
+export function queueServerSave(data?: SaveData) {
+  if (typeof window === "undefined") return;
+
+  const discordId = getDiscordUserId();
+  if (!discordId) return;
+
+  if (saveSyncTimer) clearTimeout(saveSyncTimer);
+
+  saveSyncTimer = setTimeout(() => {
+    syncSaveToServer(data || loadSave()).catch((error) => {
+      console.warn("Fishing save sync failed:", error);
+    });
+  }, 700);
+}
+
+export async function syncSaveToServer(data?: SaveData) {
+  if (typeof window === "undefined") return;
+
+  const discordId = getDiscordUserId();
+  if (!discordId) return;
+
+  const payload = normalizeSave(data || loadSave());
+
+  const res = await fetch("/api/fishing/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-discord-id": discordId,
+    },
+    body: JSON.stringify({
+      discordId,
+      displayName: getDiscordDisplayName(),
+      save: payload,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+}
+
+export async function loadSaveFromServer() {
+  if (typeof window === "undefined") return null;
+
+  const discordId = getDiscordUserId();
+  if (!discordId) return null;
+
+  const res = await fetch(`/api/fishing/save?discordId=${encodeURIComponent(discordId)}`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  if (!data?.save) return null;
+
+  const serverSave = normalizeSave(data.save);
+  localStorage.setItem(SAVE_KEY, JSON.stringify(serverSave));
+  return serverSave;
+}
+
+export async function sendRareCatchAlert(item: BagItem, save: SaveData) {
+  if (typeof window === "undefined") return;
+
+  const discordId = getDiscordUserId();
+  if (!discordId) return;
+
+  if (!["legend", "mythic", "transcend"].includes(item.grade)) return;
+
+  await fetch("/api/fishing/catch-alert", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-discord-id": discordId,
+    },
+    body: JSON.stringify({
+      discordId,
+      displayName: getDiscordDisplayName(),
+      fish: item,
+      save: normalizeSave(save),
+    }),
+  });
+>>>>>>> e89207d (fix supabase save and rare alerts)
 }
 
 export function bagWeight(save: SaveData) {
@@ -112,6 +278,10 @@ export function currentFreshness(item: BagItem, save: SaveData) {
   const iceBonus = save.prep?.ice || 0;
   const decayPerMinute = Math.max(0.8, 4.5 - fridge * 0.55 - iceBonus * 0.15);
   const elapsedMinutes = (Date.now() - item.caughtAt) / 60000;
+<<<<<<< HEAD
+=======
+
+>>>>>>> e89207d (fix supabase save and rare alerts)
   return Math.max(20, Math.floor(item.freshness - elapsedMinutes * decayPerMinute));
 }
 
@@ -153,10 +323,18 @@ export const DAILY_EVENTS: DailySeaEvent[] = [
 
 function hashString(input: string) {
   let hash = 0;
+<<<<<<< HEAD
+=======
+
+>>>>>>> e89207d (fix supabase save and rare alerts)
   for (let i = 0; i < input.length; i++) {
     hash = (hash << 5) - hash + input.charCodeAt(i);
     hash |= 0;
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> e89207d (fix supabase save and rare alerts)
   return Math.abs(hash);
 }
 
