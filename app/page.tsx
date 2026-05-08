@@ -1,6 +1,8 @@
+import DiscordLaunchBridge from "./components/DiscordLaunchBridge";
 export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
+      <DiscordLaunchBridge />
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/40 via-slate-950 to-black" />
       <div className="absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-400/20 blur-3xl" />
 
