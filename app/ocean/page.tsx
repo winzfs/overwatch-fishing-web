@@ -622,8 +622,8 @@ function OceanGame() {
             this.directionArrow.setVisible(true);
             this.tweens.add({
               targets: this.directionArrow,
-              scaleX: 1.12,
-              scaleY: 1.12,
+              scaleX: 1.06,
+              scaleY: 1.06,
               duration: 240,
               yoyo: true,
               repeat: 1,
