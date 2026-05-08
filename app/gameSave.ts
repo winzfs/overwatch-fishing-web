@@ -32,20 +32,14 @@ export type SaveData = {
     bait: "basic" | "rare" | "heavy";
     ice: number;
   };
-<<<<<<< HEAD
-=======
   totalSold?: number;
   legendaryCaught?: number;
->>>>>>> e89207d (fix supabase save and rare alerts)
 };
 
 export const SAVE_KEY = "overwatch-fishing-save-v1";
 
-<<<<<<< HEAD
-=======
 let saveSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
->>>>>>> e89207d (fix supabase save and rare alerts)
 export function defaultSave(): SaveData {
   return {
     gold: 3000,
@@ -66,20 +60,14 @@ export function defaultSave(): SaveData {
       bait: "basic",
       ice: 0,
     },
-<<<<<<< HEAD
-=======
     totalSold: 0,
     legendaryCaught: 0,
->>>>>>> e89207d (fix supabase save and rare alerts)
   };
 }
 
 export function normalizeSave(data: Partial<SaveData>): SaveData {
   const base = defaultSave();
-<<<<<<< HEAD
-=======
 
->>>>>>> e89207d (fix supabase save and rare alerts)
   return {
     ...base,
     ...data,
@@ -94,11 +82,8 @@ export function normalizeSave(data: Partial<SaveData>): SaveData {
       bait: data.prep?.bait ?? "basic",
       ice: data.prep?.ice ?? 0,
     },
-<<<<<<< HEAD
-=======
     totalSold: data.totalSold ?? 0,
     legendaryCaught: data.legendaryCaught ?? 0,
->>>>>>> e89207d (fix supabase save and rare alerts)
   };
 }
 
@@ -114,11 +99,6 @@ export function loadSave(): SaveData {
   }
 }
 
-<<<<<<< HEAD
-export function saveGame(data: SaveData) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(SAVE_KEY, JSON.stringify(normalizeSave(data)));
-=======
 function getOldSaveBeforeWrite(): SaveData {
   if (typeof window === "undefined") return defaultSave();
 
@@ -258,7 +238,6 @@ export async function sendRareCatchAlert(item: BagItem, save: SaveData) {
       save: normalizeSave(save),
     }),
   });
->>>>>>> e89207d (fix supabase save and rare alerts)
 }
 
 export function bagWeight(save: SaveData) {
@@ -278,10 +257,7 @@ export function currentFreshness(item: BagItem, save: SaveData) {
   const iceBonus = save.prep?.ice || 0;
   const decayPerMinute = Math.max(0.8, 4.5 - fridge * 0.55 - iceBonus * 0.15);
   const elapsedMinutes = (Date.now() - item.caughtAt) / 60000;
-<<<<<<< HEAD
-=======
 
->>>>>>> e89207d (fix supabase save and rare alerts)
   return Math.max(20, Math.floor(item.freshness - elapsedMinutes * decayPerMinute));
 }
 
@@ -323,18 +299,12 @@ export const DAILY_EVENTS: DailySeaEvent[] = [
 
 function hashString(input: string) {
   let hash = 0;
-<<<<<<< HEAD
-=======
 
->>>>>>> e89207d (fix supabase save and rare alerts)
   for (let i = 0; i < input.length; i++) {
     hash = (hash << 5) - hash + input.charCodeAt(i);
     hash |= 0;
   }
-<<<<<<< HEAD
-=======
 
->>>>>>> e89207d (fix supabase save and rare alerts)
   return Math.abs(hash);
 }
 
