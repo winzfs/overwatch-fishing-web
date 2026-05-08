@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 import { gradeInfo, pickFish, regions } from "../../data/fishingData";
 import {
   BagItem,
@@ -19,6 +20,31 @@ import {
 } from "../gameSave";
 
 type BattlePhase = "idle" | "bite" | "pull" | "reel" | "result";
+
+
+type OnlinePlayerRow = {
+  discord_id: string;
+  display_name: string;
+  region_id: string;
+  x: number;
+  y: number;
+  direction?: string | null;
+  updated_at?: string | null;
+};
+
+type RemotePlayer = {
+  sprite: any;
+  nameText: any;
+  targetX: number;
+  targetY: number;
+  lastSeen: number;
+};
+
+const ONLINE_SYNC_INTERVAL_MS = 200;
+const ONLINE_FORCE_SYNC_MS = 2000;
+const ONLINE_MOVE_THRESHOLD = 12;
+const ONLINE_STALE_MS = 15000;
+const MAX_REMOTE_PLAYERS = 12;
 
 
 function BagOverlay({
@@ -169,6 +195,27 @@ function OceanGame() {
     let game: any = null;
     const currentRegion = regions.find((r) => r.id === regionId) || regions[0];
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+    const supabase =
+      supabaseUrl && supabaseAnonKey
+        ? createClient(supabaseUrl, supabaseAnonKey, {
+            realtime: {
+              params: {
+                eventsPerSecond: 6,
+              },
+            },
+          })
+        : null;
+
+    const onlineDiscordId =
+      typeof window !== "undefined" ? localStorage.getItem("discord-user-id") || "" : "";
+    const onlineDisplayName =
+      typeof window !== "undefined"
+        ? localStorage.getItem("discord-display-name") || "낚시꾼"
+        : "낚시꾼";
+
+
     async function startGame() {
       const Phaser = (await import("phaser")).default;
 
@@ -178,6 +225,15 @@ function OceanGame() {
         keys: any = {};
         move = { x: 0, y: 0 };
         keyboardActive = false;
+
+        otherPlayers = new Map<string, RemotePlayer>();
+        onlineChannel: any = null;
+        onlineSyncTimer = 0;
+        onlineForceSyncTimer = 0;
+        lastOnlineX = 0;
+        lastOnlineY = 0;
+        lastOnlineDirection = "down";
+        multiplayerReady = false;
 
         hudText: any;
         hintText: any;
@@ -293,6 +349,10 @@ function OceanGame() {
           window.addEventListener("ocean-move", this.onMove as EventListener);
           window.addEventListener("ocean-fish", this.onFish as EventListener);
           window.addEventListener("ocean-return", this.returnToHarbor as EventListener);
+
+          this.initMultiplayer();
+          this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanupMultiplayer());
+          this.events.once(Phaser.Scenes.Events.DESTROY, () => this.cleanupMultiplayer());
         }
 
         drawWorld() {
@@ -828,7 +888,229 @@ function OceanGame() {
           this.updateMovement(delta);
           this.updateFishAI(delta);
           this.detectFish();
+          this.updateMultiplayer(delta);
           this.refreshHud();
+        }
+
+
+        initMultiplayer() {
+          if (!supabase || !onlineDiscordId || !this.boat) {
+            if (!supabase) console.warn("Supabase env is missing. Multiplayer disabled.");
+            return;
+          }
+
+          this.multiplayerReady = true;
+          this.lastOnlineX = this.boat.x;
+          this.lastOnlineY = this.boat.y;
+
+          this.loadInitialOnlinePlayers();
+
+          this.onlineChannel = supabase
+            .channel(`fishing-online-${regionId}`)
+            .on(
+              "postgres_changes",
+              {
+                event: "*",
+                schema: "public",
+                table: "fishing_online_players",
+                filter: `region_id=eq.${regionId}`,
+              },
+              (payload: any) => this.handleOnlinePayload(payload)
+            )
+            .subscribe((status: string) => {
+              if (status === "SUBSCRIBED") {
+                this.sendOnlinePosition(true);
+              }
+            });
+        }
+
+        async loadInitialOnlinePlayers() {
+          if (!supabase || !onlineDiscordId) return;
+
+          const since = new Date(Date.now() - ONLINE_STALE_MS).toISOString();
+
+          const { data, error } = await supabase
+            .from("fishing_online_players")
+            .select("discord_id, display_name, region_id, x, y, direction, updated_at")
+            .eq("region_id", regionId)
+            .gt("updated_at", since)
+            .limit(MAX_REMOTE_PLAYERS + 1);
+
+          if (error) {
+            console.warn("Failed to load online players:", error.message);
+            return;
+          }
+
+          for (const row of (data || []) as OnlinePlayerRow[]) {
+            this.upsertRemotePlayer(row);
+          }
+        }
+
+        handleOnlinePayload(payload: any) {
+          const row = (payload.new || payload.old) as OnlinePlayerRow | undefined;
+          if (!row || row.discord_id === onlineDiscordId) return;
+
+          if (payload.eventType === "DELETE") {
+            this.removeRemotePlayer(row.discord_id);
+            return;
+          }
+
+          if (row.region_id !== regionId) {
+            this.removeRemotePlayer(row.discord_id);
+            return;
+          }
+
+          this.upsertRemotePlayer(row);
+        }
+
+        upsertRemotePlayer(row: OnlinePlayerRow) {
+          if (!row.discord_id || row.discord_id === onlineDiscordId) return;
+
+          const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : Date.now();
+          if (Date.now() - updatedAt > ONLINE_STALE_MS) {
+            this.removeRemotePlayer(row.discord_id);
+            return;
+          }
+
+          if (!this.otherPlayers.has(row.discord_id) && this.otherPlayers.size >= MAX_REMOTE_PLAYERS) {
+            return;
+          }
+
+          let remote = this.otherPlayers.get(row.discord_id);
+
+          if (!remote) {
+            const sprite = this.add.image(row.x, row.y, "boat_idle_1");
+            sprite.setScale(0.105);
+            sprite.setAlpha(0.78);
+            sprite.setDepth(24);
+
+            const safeName = String(row.display_name || "낚시꾼").slice(0, 12);
+            const nameText = this.add.text(row.x, row.y - 34, safeName, {
+              fontSize: "18px",
+              color: "#e0f2fe",
+              align: "center",
+              fontStyle: "bold",
+              stroke: "#020617",
+              strokeThickness: 5,
+            }).setOrigin(0.5);
+            nameText.setDepth(25);
+
+            remote = {
+              sprite,
+              nameText,
+              targetX: row.x,
+              targetY: row.y,
+              lastSeen: Date.now(),
+            };
+
+            this.otherPlayers.set(row.discord_id, remote);
+          }
+
+          remote.targetX = Number(row.x) || remote.targetX;
+          remote.targetY = Number(row.y) || remote.targetY;
+          remote.lastSeen = Date.now();
+
+          if (row.direction === "left") remote.sprite.setFlipX(true);
+          if (row.direction === "right") remote.sprite.setFlipX(false);
+        }
+
+        removeRemotePlayer(discordId: string) {
+          const remote = this.otherPlayers.get(discordId);
+          if (!remote) return;
+
+          remote.sprite.destroy();
+          remote.nameText.destroy();
+          this.otherPlayers.delete(discordId);
+        }
+
+        getBoatDirection() {
+          if (this.move.x < -0.1) return "left";
+          if (this.move.x > 0.1) return "right";
+          if (this.move.y < -0.1) return "up";
+          if (this.move.y > 0.1) return "down";
+          return this.lastOnlineDirection || "down";
+        }
+
+        async sendOnlinePosition(force = false) {
+          if (!supabase || !onlineDiscordId || !this.boat) return;
+
+          const direction = this.getBoatDirection();
+          const moved = Phaser.Math.Distance.Between(
+            this.lastOnlineX,
+            this.lastOnlineY,
+            this.boat.x,
+            this.boat.y
+          );
+
+          if (!force && moved < ONLINE_MOVE_THRESHOLD && direction === this.lastOnlineDirection) return;
+
+          this.lastOnlineX = this.boat.x;
+          this.lastOnlineY = this.boat.y;
+          this.lastOnlineDirection = direction;
+
+          await supabase
+            .from("fishing_online_players")
+            .upsert(
+              {
+                discord_id: onlineDiscordId,
+                display_name: onlineDisplayName,
+                region_id: regionId,
+                x: Math.round(this.boat.x),
+                y: Math.round(this.boat.y),
+                direction,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "discord_id" }
+            );
+        }
+
+        updateMultiplayer(delta: number) {
+          if (!this.multiplayerReady) return;
+
+          this.onlineSyncTimer += delta;
+          this.onlineForceSyncTimer += delta;
+
+          if (this.onlineSyncTimer >= ONLINE_SYNC_INTERVAL_MS) {
+            const force = this.onlineForceSyncTimer >= ONLINE_FORCE_SYNC_MS;
+            this.onlineSyncTimer = 0;
+            if (force) this.onlineForceSyncTimer = 0;
+            this.sendOnlinePosition(force).catch((error: any) => {
+              console.warn("Failed to sync online position:", error?.message || error);
+            });
+          }
+
+          const now = Date.now();
+
+          for (const [discordId, remote] of this.otherPlayers) {
+            if (now - remote.lastSeen > ONLINE_STALE_MS) {
+              this.removeRemotePlayer(discordId);
+              continue;
+            }
+
+            remote.sprite.x = Phaser.Math.Linear(remote.sprite.x, remote.targetX, 0.22);
+            remote.sprite.y = Phaser.Math.Linear(remote.sprite.y, remote.targetY, 0.22);
+            remote.nameText.x = remote.sprite.x;
+            remote.nameText.y = remote.sprite.y - 34;
+          }
+        }
+
+        cleanupMultiplayer() {
+          for (const discordId of Array.from(this.otherPlayers.keys())) {
+            this.removeRemotePlayer(discordId);
+          }
+
+          if (this.onlineChannel && supabase) {
+            supabase.removeChannel(this.onlineChannel);
+            this.onlineChannel = null;
+          }
+
+          if (supabase && onlineDiscordId) {
+            supabase
+              .from("fishing_online_players")
+              .delete()
+              .eq("discord_id", onlineDiscordId)
+              .then(() => undefined);
+          }
         }
 
         updateBattle(delta: number) {
