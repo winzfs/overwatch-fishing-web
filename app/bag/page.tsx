@@ -7,8 +7,12 @@ import { SaveData, defaultSave, loadSave, saveGame, bagWeight, cargoLimit, curre
 export default function BagPage() {
   const [save, setSave] = useState<SaveData>(defaultSave());
   const [sort, setSort] = useState<"grade" | "value" | "weight" | "fresh">("value");
+  const [lastOceanUrl, setLastOceanUrl] = useState("/harbor");
 
-  useEffect(() => setSave(loadSave()), []);
+  useEffect(() => {
+    setSave(loadSave());
+    setLastOceanUrl(localStorage.getItem("last-ocean-url") || "/harbor");
+  }, []);
 
   const items = useMemo(() => {
     const list = [...(save.bag || [])];
@@ -29,9 +33,12 @@ export default function BagPage() {
   return (
     <main className="min-h-screen bg-slate-950 p-5 text-white">
       <div className="mx-auto max-w-6xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <a href="/harbor" className="rounded-xl bg-white/10 px-4 py-2 font-bold">← 항구</a>
-          <a href="/prepare" className="rounded-xl bg-cyan-400 px-4 py-2 font-black text-slate-950">🚤 출항</a>
+          <div className="flex gap-2">
+            <a href={lastOceanUrl} className="rounded-xl bg-cyan-400 px-4 py-2 font-black text-slate-950">🌊 바다로</a>
+            <a href="/prepare" className="rounded-xl bg-white/10 px-4 py-2 font-bold">🚤 출항</a>
+          </div>
         </div>
 
         <h1 className="mt-8 text-4xl font-black">🎒 어획 가방</h1>
