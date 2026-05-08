@@ -25,6 +25,10 @@ function OceanGame() {
   const regionId = searchParams.get("region") || "busan";
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last-ocean-url", `/ocean?region=${regionId}`);
+    }
+
     let game: any = null;
     const currentRegion = regions.find((r) => r.id === regionId) || regions[0];
 
@@ -69,6 +73,10 @@ function OceanGame() {
         reelProgress = 0;
         battleTimer = 0;
         requiredDirection = "LEFT";
+        requiredDirection2 = "RIGHT";
+        pullRound = 0;
+        maxPullRounds = 1;
+        battleQuality: "perfect" | "good" = "good";
         selectedFish = pickFish(regionId);
         fishSize = { cm: 0, kg: 0, sizeRank: "중형", multiplier: 1 };
         animTimer = 0;
@@ -249,7 +257,7 @@ function OceanGame() {
         }
 
         createHud() {
-          this.hudText = this.add.text(14, 14, "", {
+          this.hudText = this.add.text(14, 58, "", {
             fontSize: "14px", color: "#ffffff", fontStyle: "bold", backgroundColor: "rgba(0,0,0,0.55)", padding: { x: 9, y: 7 },
           }).setScrollFactor(0).setDepth(100);
 
@@ -257,7 +265,7 @@ function OceanGame() {
             fontSize: "21px", color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 5,
           }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 
-          this.eventText = this.add.text(this.scale.width / 2, 76, "", {
+          this.eventText = this.add.text(this.scale.width / 2, 118, "", {
             fontSize: "18px", color: "#fde047", align: "center", fontStyle: "bold", backgroundColor: "rgba(0,0,0,0.55)", padding: { x: 12, y: 8 },
           }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setDepth(110);
 
@@ -267,7 +275,7 @@ function OceanGame() {
         }
 
         drawMinimap() {
-          const w = 112, h = 88, x = this.scale.width - w - 12, y = 14;
+          const w = 112, h = 88, x = this.scale.width - w - 12, y = 58;
           this.minimap.clear();
           this.minimap.fillStyle(0x020617, 0.62);
           this.minimap.fillRoundedRect(x, y, w, h, 10);
@@ -313,7 +321,7 @@ function OceanGame() {
 
         showEvent(message: string, color = "#fde047") {
           this.eventText.setText(message).setColor(color).setVisible(true).setAlpha(1);
-          this.eventText.y = 76;
+          this.eventText.y = 118;
           this.tweens.add({ targets: this.eventText, y: 56, alpha: 0, duration: 1900, onComplete: () => this.eventText.setVisible(false) });
         }
 
@@ -357,10 +365,22 @@ function OceanGame() {
           this.tension = 50;
           this.reelProgress = 0;
           this.battleTimer = 0;
+          this.pullRound = 0;
+          this.battleQuality = "good";
           this.move = { x: 0, y: 0 };
           this.selectedFish = pickFish(regionId);
           this.fishSize = this.makeFishSize(this.selectedFish.grade);
           const grade = gradeInfo[this.selectedFish.grade];
+
+          const gradePulls =
+            this.selectedFish.grade === "common" ? 1 :
+            this.selectedFish.grade === "rare" ? 1 :
+            this.selectedFish.grade === "epic" ? 2 :
+            this.selectedFish.grade === "legend" ? 2 :
+            this.selectedFish.grade === "mythic" ? 3 : 3;
+
+          const sizeExtra = this.fishSize.sizeRank === "괴물급" || this.fishSize.sizeRank === "초대형" ? 1 : 0;
+          this.maxPullRounds = gradePulls + sizeExtra;
           if (["legend", "mythic", "transcend"].includes(this.selectedFish.grade)) {
             this.cameras.main.shake(260, 0.012);
             this.showEvent(`${grade.emoji} 희귀한 기척이 느껴진다!`, grade.color);
@@ -369,12 +389,17 @@ function OceanGame() {
           this.battleText.setText("");
           this.resultBadge.setVisible(false);
           const width = this.scale.width;
-          const rodBonus = (this.saveData.upgrades.rod || 0) * 0.018;
-          this.hitZone.width = width * Math.min(0.34, grade.zone + rodBonus);
-          this.hitZone.x = Phaser.Math.Between(-Math.floor(width * 0.22), Math.floor(width * 0.22));
+          const rodBonus = (this.saveData.upgrades.rod || 0) * 0.014;
+          const sizePenalty =
+            this.fishSize.sizeRank === "괴물급" ? 0.055 :
+            this.fishSize.sizeRank === "초대형" ? 0.035 :
+            this.fishSize.sizeRank === "대형" ? 0.018 : 0;
+
+          this.hitZone.width = width * Math.max(0.075, Math.min(0.31, grade.zone + rodBonus - sizePenalty));
+          this.hitZone.x = Phaser.Math.Between(-Math.floor(width * 0.25), Math.floor(width * 0.25));
           this.pointer.x = -this.timingBar.width / 2;
           this.pointerDirection = 1;
-          this.battleGuide.setText("1단계 입질: 초록 구간에서 낚시 버튼!");
+          this.battleGuide.setText("1단계 입질: 초록 구간에서 낚시 버튼! PERFECT면 장력 보너스");
           this.panel.setVisible(true);
           this.hintText.setText("");
           this.updateTensionBar();
@@ -384,11 +409,21 @@ function OceanGame() {
           if (this.phase === "bite") this.checkBite();
           else if (this.phase === "pull") this.checkPullInput();
           else if (this.phase === "reel") {
-            this.reelProgress += 14 + (this.saveData.upgrades.rod || 0) * 2;
-            this.tension += 7;
-            this.battleText.setText(`릴 감기! ${Math.min(100, Math.floor(this.reelProgress))}%`);
+            const gradeHard =
+              this.selectedFish.grade === "common" ? 0 :
+              this.selectedFish.grade === "rare" ? 1 :
+              this.selectedFish.grade === "epic" ? 2 :
+              this.selectedFish.grade === "legend" ? 3 :
+              this.selectedFish.grade === "mythic" ? 4 : 5;
+
+            const sizeHard = this.fishSize.sizeRank === "괴물급" ? 3 : this.fishSize.sizeRank === "초대형" ? 2 : this.fishSize.sizeRank === "대형" ? 1 : 0;
+            const rod = this.saveData.upgrades.rod || 0;
+
+            this.reelProgress += Math.max(7, 13 + rod * 1.5 - gradeHard - sizeHard);
+            this.tension += 8 + gradeHard + sizeHard;
+            this.battleText.setText(`릴 감기! ${Math.min(100, Math.floor(this.reelProgress))}% · 장력 ${Math.floor(this.tension)}%`);
             this.updateTensionBar();
-            if (this.reelProgress >= 100) this.finishCatch(true, "good");
+            if (this.reelProgress >= 100) this.finishCatch(true, this.battleQuality);
             if (this.tension >= 100) this.finishCatch(false, "miss");
           }
         }
@@ -401,11 +436,15 @@ function OceanGame() {
           const perfect = Math.abs(center - this.hitZone.x) <= perfectRange;
           const success = center >= left && center <= right;
           if (!success) return this.finishCatch(false, "miss");
+
+          this.battleQuality = perfect ? "perfect" : "good";
           this.phase = "pull";
+          this.pullRound = 1;
+          this.battleTimer = 0;
           this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
-          this.battleGuide.setText(`2단계 저항: ${this.requiredDirection} 방향을 누른 뒤 낚시 버튼!`);
-          this.battleText.setText(perfect ? "🌟 완벽한 입질! 저항을 받아내자!" : "✅ 입질 성공! 저항을 받아내자!");
-          this.tension += perfect ? -8 : 4;
+          this.battleGuide.setText(`2단계 저항 ${this.pullRound}/${this.maxPullRounds}: ${this.requiredDirection} 방향을 누른 뒤 낚시 버튼!`);
+          this.battleText.setText(perfect ? "🌟 PERFECT! 장력이 낮아졌다!" : "✅ 입질 성공! 저항을 받아내자!");
+          this.tension += perfect ? -14 : 6;
           this.updateTensionBar();
         }
 
@@ -420,15 +459,30 @@ function OceanGame() {
         checkPullInput() {
           const input = this.getCurrentInputDirection();
           if (input === this.requiredDirection) {
-            this.phase = "reel";
-            this.battleGuide.setText("3단계 릴링: 낚시 버튼을 연타하되 장력이 터지지 않게!");
-            this.battleText.setText("🎣 릴링 시작!");
-            this.tension -= 18;
+            this.tension -= 14;
+
+            if (this.pullRound < this.maxPullRounds) {
+              this.pullRound += 1;
+              this.battleTimer = 0;
+              const dirs = ["LEFT", "RIGHT", "UP", "DOWN"].filter((d) => d !== this.requiredDirection);
+              this.requiredDirection = Phaser.Utils.Array.GetRandom(dirs);
+              this.battleGuide.setText(`2단계 저항 ${this.pullRound}/${this.maxPullRounds}: ${this.requiredDirection} 방향 후 낚시 버튼!`);
+              this.battleText.setText("✅ 저항을 받아냈다! 다음 방향!");
+            } else {
+              this.phase = "reel";
+              this.battleTimer = 0;
+              this.battleGuide.setText("3단계 릴링: 낚시 버튼을 연타하되 장력이 터지지 않게!");
+              this.battleText.setText("🎣 릴링 시작!");
+              this.tension -= 12;
+            }
           } else {
-            this.tension += 24;
+            const penalty =
+              this.selectedFish.grade === "mythic" || this.selectedFish.grade === "transcend" ? 32 :
+              this.selectedFish.grade === "legend" ? 28 : 24;
+            this.tension += penalty;
             this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
             this.battleGuide.setText(`방향이 틀렸다! ${this.requiredDirection} 방향 후 낚시 버튼!`);
-            this.battleText.setText("⚠️ 장력이 올라간다!");
+            this.battleText.setText("⚠️ 장력이 크게 올라간다!");
             if (this.tension >= 100) this.finishCatch(false, "miss");
           }
           this.updateTensionBar();
@@ -455,7 +509,12 @@ function OceanGame() {
               grade: this.selectedFish.grade,
               cm: this.fishSize.cm,
               kg: this.fishSize.kg,
-              baseValue: Math.floor(this.selectedFish.price * this.fishSize.multiplier * eventMult),
+              baseValue: Math.floor(
+                this.selectedFish.price *
+                this.fishSize.multiplier *
+                eventMult *
+                (quality === "perfect" ? 1.25 : 1)
+              ),
               exp: Math.floor(this.selectedFish.exp * this.dailyEvent.expMultiplier),
               freshness: 100,
               caughtAt: Date.now(),
@@ -566,13 +625,21 @@ function OceanGame() {
           }
           if (this.phase === "pull") {
             this.battleTimer += delta;
-            this.tension += 0.018 * delta;
+            const gradeHard =
+              this.selectedFish.grade === "common" ? 1 :
+              this.selectedFish.grade === "rare" ? 1.15 :
+              this.selectedFish.grade === "epic" ? 1.3 :
+              this.selectedFish.grade === "legend" ? 1.55 :
+              this.selectedFish.grade === "mythic" ? 1.8 : 2.1;
+
+            this.tension += 0.016 * delta * gradeHard;
             this.updateTensionBar();
-            if (this.battleTimer > 4200 || this.tension >= 100) this.finishCatch(false, "miss");
+            if (this.battleTimer > 3900 || this.tension >= 100) this.finishCatch(false, "miss");
           }
           if (this.phase === "reel") {
-            this.tension -= 0.018 * delta;
-            this.reelProgress -= 0.006 * delta;
+            const relief = this.battleQuality === "perfect" ? 0.018 : 0.012;
+            this.tension -= relief * delta;
+            this.reelProgress -= 0.008 * delta;
             this.reelProgress = Phaser.Math.Clamp(this.reelProgress, 0, 100);
             this.updateTensionBar();
             if (this.tension <= 0) this.tension = 4;
@@ -670,14 +737,7 @@ function OceanGame() {
       });
     }
 
-    startGame().catch((error) => {
-      console.error("Ocean scene failed to start:", error);
-      const el = gameRef.current;
-      if (el) {
-        el.innerHTML =
-          "<div style='color:white;padding:20px;font-weight:900;background:#020617;height:100%'>바다 씬 시작 실패<br/>브라우저 콘솔을 확인해주세요.</div>";
-      }
-    });
+    startGame();
 
     return () => { if (game) game.destroy(true); };
   }, [regionId]);
@@ -725,10 +785,10 @@ function OceanGame() {
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
       <div ref={gameRef} className="h-full w-full" />
 
-      <div className="absolute left-3 top-3 z-50 flex gap-2">
-        <a href="/harbor" className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur">⚓</a>
-        <a href="/bag" className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur">🎒</a>
-        <button onClick={returnHarbor} className="rounded-xl bg-amber-400 px-3 py-2 text-xs font-black text-slate-950 shadow-lg">귀환</button>
+      <div className="absolute left-3 top-3 z-50 flex gap-1.5">
+        <a href="/harbor" className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">⚓</a>
+        <a href="/bag" className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">🎒</a>
+        <button onClick={returnHarbor} className="rounded-lg bg-amber-400 px-2.5 py-2 text-[11px] font-black text-slate-950 shadow-lg">귀환</button>
       </div>
 
       <div className="pointer-events-none absolute right-3 top-3 z-50 hidden rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white/80 backdrop-blur sm:block">
