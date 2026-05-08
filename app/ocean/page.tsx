@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { gradeInfo, pickFish, regions } from "../../data/fishingData";
 
@@ -158,6 +158,8 @@ type BattlePhase = "idle" | "bite" | "pull" | "reel" | "result";
 
 function OceanGame() {
   const gameRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef<HTMLDivElement>(null);
+  const [stick, setStick] = useState({ x: 0, y: 0 });
   const searchParams = useSearchParams();
   const regionId = searchParams.get("region") || "busan";
 
@@ -1101,6 +1103,42 @@ function OceanGame() {
     stopMove();
   }
 
+  function releaseMove() {
+    setStick({ x: 0, y: 0 });
+    stopMove();
+  }
+
+  function updateJoystick(clientX: number, clientY: number) {
+    const el = stickRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const max = rect.width / 2 - 22;
+
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > max && dist > 0) {
+      dx = (dx / dist) * max;
+      dy = (dy / dist) * max;
+    }
+
+    const nx = dx / max;
+    const ny = dy / max;
+
+    setStick({ x: dx, y: dy });
+    move(nx, ny);
+  }
+
+  function pointerJoystick(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateJoystick(e.clientX, e.clientY);
+  }
+
   return (
     <main
       className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none"
@@ -1108,122 +1146,60 @@ function OceanGame() {
     >
       <div ref={gameRef} className="h-full w-full" />
 
-      {/* 모바일에서는 상단 UI를 작게 정리 */}
       <div className="absolute left-3 top-3 z-50 flex gap-2">
-        <a
-          href="/regions"
-          className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur"
-        >
+        <a href="/regions" className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur">
           ← 지역
         </a>
-
-        <a
-          href="/collection"
-          className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur"
-        >
+        <a href="/collection" className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur">
           📖
         </a>
-
-        <a
-          href="/shop"
-          className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur"
-        >
+        <a href="/shop" className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur">
           🏪
+        </a>
+        <a href="/events" className="rounded-xl bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur">
+          🌦️
         </a>
       </div>
 
-      {/* PC 안내는 큰 화면에서만 표시 */}
       <div className="pointer-events-none absolute right-3 top-3 z-50 hidden rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white/80 backdrop-blur sm:block">
         PC: WASD/방향키 이동 · Space/Enter 낚시
       </div>
 
-      {/* 모바일 조이스틱: 작고 아래쪽, 멀티터치 대응 */}
       <div
-        className="absolute bottom-5 left-4 z-50 grid grid-cols-3 gap-1.5 rounded-3xl border border-white/10 bg-black/25 p-2 backdrop-blur"
+        ref={stickRef}
+        onPointerDown={pointerJoystick}
+        onPointerMove={(e) => {
+          if (e.buttons === 1 || e.pointerType === "touch") {
+            updateJoystick(e.clientX, e.clientY);
+          }
+        }}
+        onPointerUp={releaseMove}
+        onPointerCancel={releaseMove}
+        onLostPointerCapture={releaseMove}
+        className="absolute bottom-6 left-5 z-50 h-32 w-32 rounded-full border border-white/15 bg-black/30 backdrop-blur"
         style={{ touchAction: "none" }}
       >
-        <div />
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            holdMove(0, -1);
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/20 bg-cyan-400/10" />
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 rounded-full border-2 border-cyan-200 bg-cyan-400/80 shadow-xl shadow-cyan-400/30"
+          style={{
+            transform: `translate(calc(-50% + ${stick.x}px), calc(-50% + ${stick.y}px))`,
           }}
-          onPointerUp={releaseMove}
-          onPointerCancel={releaseMove}
-          onPointerLeave={releaseMove}
-          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
-        >
-          ▲
-        </button>
-        <div />
-
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            holdMove(-1, 0);
-          }}
-          onPointerUp={releaseMove}
-          onPointerCancel={releaseMove}
-          onPointerLeave={releaseMove}
-          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
-        >
-          ◀
-        </button>
-
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            holdMove(0, 0);
-          }}
-          onPointerUp={releaseMove}
-          onPointerCancel={releaseMove}
-          className="h-12 w-12 rounded-xl border border-cyan-300/40 bg-cyan-400/20 text-sm font-black text-cyan-100 sm:h-14 sm:w-14"
-        >
-          ●
-        </button>
-
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            holdMove(1, 0);
-          }}
-          onPointerUp={releaseMove}
-          onPointerCancel={releaseMove}
-          onPointerLeave={releaseMove}
-          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
-        >
-          ▶
-        </button>
-
-        <div />
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            holdMove(0, 1);
-          }}
-          onPointerUp={releaseMove}
-          onPointerCancel={releaseMove}
-          onPointerLeave={releaseMove}
-          className="h-12 w-12 rounded-xl border border-white/25 bg-blue-950/70 text-xl font-black text-white active:scale-95 sm:h-14 sm:w-14"
-        >
-          ▼
-        </button>
-        <div />
+        />
+        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 text-xs font-black text-white/70">▲</div>
+        <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-black text-white/70">▼</div>
+        <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-black text-white/70">◀</div>
+        <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs font-black text-white/70">▶</div>
       </div>
 
-      {/* 낚시 버튼: 오른쪽 아래로 분리, 멀티터치 대응 */}
       <button
         type="button"
         onPointerDown={(e) => {
+          e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
           fish();
         }}
-        className="absolute bottom-8 right-5 z-50 h-20 w-20 rounded-full border-4 border-amber-800 bg-blue-600 text-lg font-black text-white shadow-2xl active:scale-95 sm:h-24 sm:w-24"
+        className="absolute bottom-9 right-5 z-50 h-24 w-24 rounded-full border-4 border-amber-900 bg-blue-600 text-xl font-black text-white shadow-2xl active:scale-95"
         style={{
           backgroundImage: "url('/assets/ui/hook_button.png')",
           backgroundSize: "cover",
@@ -1235,9 +1211,8 @@ function OceanGame() {
         낚시
       </button>
 
-      {/* 하단 중앙 여백 확보용 미니 안내 */}
       <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/70 backdrop-blur sm:hidden">
-        왼쪽 이동 · 오른쪽 낚시
+        왼쪽 드래그 이동 · 오른쪽 낚시
       </div>
     </main>
   );
