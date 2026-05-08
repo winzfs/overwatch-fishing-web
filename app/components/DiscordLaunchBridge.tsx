@@ -48,7 +48,6 @@ export default function DiscordLaunchBridge() {
       localStorage.setItem("discord-launch-token", token);
 
       const parsed = parseDiscordLaunch(token);
-
       if (parsed) {
         localStorage.setItem("discord-user-id", parsed.user_id || "");
         localStorage.setItem("discord-display-name", parsed.display_name || parsed.username || "");
@@ -57,8 +56,7 @@ export default function DiscordLaunchBridge() {
         setInfo(parsed);
       }
 
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, "", cleanUrl);
+      window.history.replaceState({}, "", window.location.pathname);
       return;
     }
 
