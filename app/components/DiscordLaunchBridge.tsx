@@ -39,6 +39,7 @@ function parseDiscordLaunch(token: string): DiscordLaunchInfo | null {
 
 export default function DiscordLaunchBridge() {
   const [info, setInfo] = useState<DiscordLaunchInfo | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -48,6 +49,7 @@ export default function DiscordLaunchBridge() {
       localStorage.setItem("discord-launch-token", token);
 
       const parsed = parseDiscordLaunch(token);
+
       if (parsed) {
         localStorage.setItem("discord-user-id", parsed.user_id || "");
         localStorage.setItem("discord-display-name", parsed.display_name || parsed.username || "");
@@ -56,7 +58,9 @@ export default function DiscordLaunchBridge() {
         setInfo(parsed);
       }
 
+      // 쿼리 제거는 저장 후에만 수행
       window.history.replaceState({}, "", window.location.pathname);
+      setChecked(true);
       return;
     }
 
@@ -71,12 +75,22 @@ export default function DiscordLaunchBridge() {
         guild_id: savedGuildId || "",
       });
     }
+
+    setChecked(true);
   }, []);
 
-  if (!info?.display_name && !info?.user_id) return null;
+  if (!checked) return null;
+
+  if (!info?.display_name && !info?.user_id) {
+    return (
+      <div className="fixed left-1/2 top-3 z-[9999] -translate-x-1/2 rounded-full border border-white/10 bg-slate-950/75 px-4 py-2 text-xs font-black text-slate-300 shadow-xl backdrop-blur">
+        디스코드 미연결
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed left-1/2 top-3 z-[300] -translate-x-1/2 rounded-full border border-cyan-300/30 bg-slate-950/85 px-4 py-2 text-xs font-black text-cyan-100 shadow-xl backdrop-blur">
+    <div className="fixed left-1/2 top-3 z-[9999] -translate-x-1/2 rounded-full border border-cyan-300/30 bg-slate-950/90 px-4 py-2 text-xs font-black text-cyan-100 shadow-xl backdrop-blur">
       디스코드 연결됨 · {info.display_name || info.username || info.user_id}
     </div>
   );
