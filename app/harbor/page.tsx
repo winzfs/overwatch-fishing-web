@@ -1,5 +1,7 @@
 "use client";
 
+import DiscordLaunchBridge from "../components/DiscordLaunchBridge";
+
 import { useEffect, useMemo, useState } from "react";
 import { gradeInfo } from "../../data/fishingData";
 import {
@@ -67,6 +69,7 @@ export default function HarborPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
+      <DiscordLaunchBridge />
       <section className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-cyan-900/30 via-slate-950 to-black px-5 py-8">
         <div className="absolute right-10 top-10 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
 
