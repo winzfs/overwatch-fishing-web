@@ -434,12 +434,12 @@ function OceanGame() {
           this.battleTitle = this.add.text(0, -210, "🎣 낚시 전투!", { fontSize: "34px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
           this.fishNameText = this.add.text(0, -168, "", { fontSize: "21px", color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
           this.battleGuide = this.add.text(0, -130, "", { fontSize: "18px", color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-          this.directionArrow = this.add.image(0, -46, "arrow_left");
+          this.directionArrow = this.add.image(-90, -46, "arrow_left");
           this.directionArrow.setDisplaySize(120, 120);
           this.directionArrow.setVisible(false);
           this.directionArrow.setDepth(5);
 
-          this.directionLabel = this.add.text(0, 102, "", {
+          this.directionLabel = this.add.text(78, 94, "", {
             fontSize: "34px",
             color: "#ffffff",
             align: "center",
@@ -630,7 +630,7 @@ function OceanGame() {
           }
 
           if (this.directionLabel) {
-            this.directionLabel.setText(`${this.getDirectionButtonText(direction)}  +  🎣`);
+            this.directionLabel.setText("+  🎣");
             this.directionLabel.setVisible(true);
           }
 
@@ -648,14 +648,6 @@ function OceanGame() {
           if (direction === "UP") return "위쪽";
           if (direction === "DOWN") return "아래쪽";
           return direction;
-        }
-
-        getDirectionButtonText(direction: string) {
-          if (direction === "LEFT") return "⬅️";
-          if (direction === "RIGHT") return "➡️";
-          if (direction === "UP") return "⬆️";
-          if (direction === "DOWN") return "⬇️";
-          return "⬆️";
         }
 
         getCurrentInputDirection() {
