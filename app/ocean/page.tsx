@@ -638,10 +638,14 @@ function OceanGame() {
               this.canFish = true;
               this.targetFish = fish;
               this.hintText.setText(fish.getData("boss") ? "🐋 거대 그림자 발견! 낚시 버튼!" : "🎣 물고기 실루엣 발견! 낚시 버튼!");
-              fish.setTint(0xffffaa);
+              if (typeof fish.setTint === "function") {
+                fish.setTint(0xffffaa);
+              }
               break;
             } else {
-              fish.clearTint();
+              if (typeof fish.clearTint === "function") {
+                fish.clearTint();
+              }
             }
           }
           if (!this.canFish) this.hintText.setText("");
@@ -666,7 +670,14 @@ function OceanGame() {
       });
     }
 
-    startGame();
+    startGame().catch((error) => {
+      console.error("Ocean scene failed to start:", error);
+      const el = gameRef.current;
+      if (el) {
+        el.innerHTML =
+          "<div style='color:white;padding:20px;font-weight:900;background:#020617;height:100%'>바다 씬 시작 실패<br/>브라우저 콘솔을 확인해주세요.</div>";
+      }
+    });
 
     return () => { if (game) game.destroy(true); };
   }, [regionId]);
