@@ -12,15 +12,151 @@ import {
   bagWeight,
   cargoLimit,
   fuelLimit,
+  currentFreshness,
+  itemSellValue,
   getDailySeaEvent,
 } from "../gameSave";
 
 type BattlePhase = "idle" | "bite" | "pull" | "reel" | "result";
 
+
+function BagOverlay({
+  onClose,
+  refreshKey,
+}: {
+  onClose: () => void;
+  refreshKey: number;
+}) {
+  const [save, setSave] = useState<SaveData>(defaultSave());
+  const [sort, setSort] = useState<"value" | "weight" | "fresh" | "grade">("value");
+
+  useEffect(() => {
+    setSave(loadSave());
+  }, [refreshKey]);
+
+  const items = [...(save.bag || [])].sort((a, b) => {
+    if (sort === "value") return itemSellValue(b, save) - itemSellValue(a, save);
+    if (sort === "weight") return b.kg - a.kg;
+    if (sort === "fresh") return currentFreshness(b, save) - currentFreshness(a, save);
+    return String(b.grade).localeCompare(String(a.grade));
+  });
+
+  const totalValue = items.reduce((sum, item) => sum + itemSellValue(item, save), 0);
+
+  function discard(uid: string) {
+    const next: SaveData = {
+      ...save,
+      bag: (save.bag || []).filter((item) => item.uid !== uid),
+    };
+
+    saveGame(next);
+    setSave(next);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] bg-black/65 p-3 backdrop-blur-sm"
+      style={{ touchAction: "none" }}
+    >
+      <section className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/95 text-white shadow-2xl">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 p-4">
+          <div>
+            <h2 className="text-2xl font-black">🎒 어획 가방</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              {bagWeight(save).toFixed(1)} / {cargoLimit(save)}kg · 예상 판매가 {totalValue.toLocaleString()}G
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-black text-slate-950 active:scale-95"
+          >
+            닫기
+          </button>
+        </header>
+
+        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/10 p-3">
+          {[
+            ["value", "가격순"],
+            ["weight", "무게순"],
+            ["fresh", "신선도순"],
+            ["grade", "등급순"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setSort(id as any)}
+              className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold ${
+                sort === id ? "bg-cyan-400 text-slate-950" : "bg-white/10 text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          {items.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-slate-300">
+              아직 가방이 비어 있습니다.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {items.map((item) => {
+                const grade = gradeInfo[item.grade as keyof typeof gradeInfo];
+                const fresh = currentFreshness(item, save);
+                const value = itemSellValue(item, save);
+
+                return (
+                  <div key={item.uid} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-lg font-black" style={{ color: grade?.color || "#fff" }}>
+                          {grade?.emoji} {item.name}
+                        </div>
+                        <p className="mt-1 text-xs text-slate-300">
+                          {item.sizeRank} · {item.cm}cm · {item.kg}kg
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          신선도 {fresh}% · {value.toLocaleString()}G
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => discard(item.uid)}
+                        className="rounded-xl bg-red-500/20 px-3 py-2 text-xs font-bold text-red-200"
+                      >
+                        버리기
+                      </button>
+                    </div>
+
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+                      <div
+                        className={fresh > 70 ? "h-full bg-cyan-400" : fresh > 40 ? "h-full bg-yellow-400" : "h-full bg-red-400"}
+                        style={{ width: `${fresh}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <footer className="shrink-0 border-t border-white/10 p-3 text-center text-xs font-bold text-slate-400">
+          판매는 항구 정산소에서 가능합니다. 바다에서는 가방 확인과 버리기만 가능합니다.
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+
 function OceanGame() {
   const gameRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef<HTMLDivElement>(null);
   const [stick, setStick] = useState({ x: 0, y: 0 });
+  const [bagOpen, setBagOpen] = useState(false);
+  const [bagRefreshKey, setBagRefreshKey] = useState(0);
   const searchParams = useSearchParams();
   const regionId = searchParams.get("region") || "busan";
 
@@ -754,6 +890,11 @@ function OceanGame() {
   function returnHarbor() {
     window.dispatchEvent(new CustomEvent("ocean-return"));
   }
+
+  function openBag() {
+    setBagRefreshKey(Date.now());
+    setBagOpen(true);
+  }
   function releaseMove() {
     setStick({ x: 0, y: 0 });
     stopMove();
@@ -787,7 +928,7 @@ function OceanGame() {
 
       <div className="absolute left-3 top-3 z-50 flex gap-1.5">
         <a href="/harbor" className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">⚓</a>
-        <a href="/bag" className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">🎒</a>
+        <button onClick={openBag} className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">🎒</button>
         <button onClick={returnHarbor} className="rounded-lg bg-amber-400 px-2.5 py-2 text-[11px] font-black text-slate-950 shadow-lg">귀환</button>
       </div>
 
@@ -824,6 +965,16 @@ function OceanGame() {
       <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/70 backdrop-blur sm:hidden">
         탐험 · 가방 적재 · 항구 귀환 · 판매
       </div>
+
+      {bagOpen && (
+        <BagOverlay
+          refreshKey={bagRefreshKey}
+          onClose={() => {
+            setBagOpen(false);
+            setBagRefreshKey(Date.now());
+          }}
+        />
+      )}
     </main>
   );
 }
