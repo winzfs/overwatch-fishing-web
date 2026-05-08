@@ -37,6 +37,10 @@ export type SaveData = {
 };
 
 export const SAVE_KEY = "overwatch-fishing-save-v1";
+const RARE_ALERT_SENT_KEY = "overwatch-fishing-rare-alert-sent-v1";
+const RARE_ALERT_COOLDOWN_MS = 2500;
+
+let lastRareAlertAt = 0;
 
 let saveSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -133,13 +137,57 @@ export function getDiscordDisplayName() {
   return localStorage.getItem("discord-display-name") || "";
 }
 
+
+function getSentRareAlertIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+
+  try {
+    const raw = localStorage.getItem(RARE_ALERT_SENT_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSentRareAlertIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+
+  // 너무 커지지 않게 최근 300개만 보관
+  const latest = Array.from(ids).slice(-300);
+  localStorage.setItem(RARE_ALERT_SENT_KEY, JSON.stringify(latest));
+}
+
+function markRareAlertSent(uid: string) {
+  const sentIds = getSentRareAlertIds();
+  sentIds.add(uid);
+  saveSentRareAlertIds(sentIds);
+}
+
+function canSendRareAlertNow() {
+  const now = Date.now();
+
+  if (now - lastRareAlertAt < RARE_ALERT_COOLDOWN_MS) {
+    return false;
+  }
+
+  lastRareAlertAt = now;
+  return true;
+}
+
 function detectAndSendRareCatchAlert(previous: SaveData, next: SaveData) {
   const discordId = getDiscordUserId();
   if (!discordId) return;
 
   const oldIds = new Set((previous.bag || []).map((item) => item.uid));
+  const sentAlertIds = getSentRareAlertIds();
+
   const newRareItems = (next.bag || []).filter((item) => {
-    return !oldIds.has(item.uid) && ["legend", "mythic", "transcend"].includes(item.grade);
+    return (
+      !oldIds.has(item.uid) &&
+      !sentAlertIds.has(item.uid) &&
+      ["legend", "mythic", "transcend"].includes(item.grade)
+    );
   });
 
   if (newRareItems.length === 0) return;
@@ -151,9 +199,15 @@ function detectAndSendRareCatchAlert(previous: SaveData, next: SaveData) {
 
   localStorage.setItem(SAVE_KEY, JSON.stringify(patched));
 
-  for (const item of newRareItems) {
-    sendRareCatchAlert(item, patched).catch(() => {});
-  }
+  // 저장/렌더링이 짧은 시간에 여러 번 호출되어도 웹훅은 1개씩만 보냄
+  if (!canSendRareAlertNow()) return;
+
+  const item = newRareItems[0];
+
+  // API 실패/재시도/렌더 중복으로 같은 물고기 속보가 반복 전송되지 않게 먼저 기록
+  markRareAlertSent(item.uid);
+
+  sendRareCatchAlert(item, patched).catch(() => {});
 }
 
 export function queueServerSave(data?: SaveData) {
