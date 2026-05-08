@@ -206,7 +206,7 @@ function OceanGame() {
         battleTimer = 0;
         requiredDirection = "LEFT";
         selectedFish = pickFish(regionId);
-        dailyEvent: DailySeaEvent = getDailySeaEvent(regionId);
+        dailyEvent = getDailySeaEvent(regionId);
         fishSize = { cm: 0, kg: 0, sizeRank: "중형", multiplier: 1 };
 
         saveData: SaveData = defaultSave();
@@ -675,7 +675,6 @@ function OceanGame() {
           this.battleTimer = 0;
           this.move = { x: 0, y: 0 };
           this.selectedFish = pickFish(regionId);
-        dailyEvent: DailySeaEvent = getDailySeaEvent(regionId);
           this.fishSize = this.makeFishSize(this.selectedFish.grade);
 
           const grade = gradeInfo[this.selectedFish.grade];
