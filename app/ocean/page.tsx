@@ -238,11 +238,18 @@ function OceanGame() {
         multiplayerReady = false;
 
         hudText: any;
+        hudBox: any;
         hintText: any;
         eventText: any;
         minimap: any;
         minimapBoat: any;
         minimapPort: any;
+        minimapWreck: any;
+        vignette: any;
+        waveOverlays: any[] = [];
+        buoys: any[] = [];
+        crates: any[] = [];
+        boatBobBase = 0;
 
         panel: any;
         battleTitle: any;
@@ -278,6 +285,7 @@ function OceanGame() {
         selectedFish = pickFish(regionId);
         fishSize = { cm: 0, kg: 0, sizeRank: "중형", multiplier: 1 };
         animTimer = 0;
+        lastBob = 0;
 
         WORLD_WIDTH = 3000;
         WORLD_HEIGHT = 2300;
@@ -295,10 +303,15 @@ function OceanGame() {
           this.load.image("island_rocky", "/assets/backgrounds/island_rocky.png");
           this.load.image("island_sandbar", "/assets/backgrounds/island_sandbar.png");
 
+          this.load.image("wave_1", "/assets/tiles/wave_1.png");
+          this.load.image("wave_2", "/assets/tiles/wave_2.png");
+          this.load.image("wave_3", "/assets/tiles/wave_3.png");
+
           this.load.image("boat_idle_1", "/assets/sprites/boat_idle_1.png");
           this.load.image("boat_idle_2", "/assets/sprites/boat_idle_2.png");
           this.load.image("boat_move_1", "/assets/sprites/boat_move_1.png");
           this.load.image("boat_move_2", "/assets/sprites/boat_move_2.png");
+          this.load.image("boat_top", "/assets/sprites/boat_top.png");
 
           this.load.image("fish_common", "/assets/sprites/fish_shadow_common.png");
           this.load.image("fish_rare", "/assets/sprites/fish_shadow_rare.png");
@@ -312,6 +325,7 @@ function OceanGame() {
           this.load.image("arrow_up", "/ui/arrows/up.png");
           this.load.image("arrow_down", "/ui/arrows/down.png");
           this.load.image("hook_button", "/assets/ui/hook_button.png");
+          this.load.image("fish_nearby_sign", "/assets/ui/fish_nearby_sign.png");
 
           this.load.image("burst_rare", "/assets/effects/burst_rare.png");
           this.load.image("burst_epic", "/assets/effects/burst_epic.png");
@@ -334,8 +348,10 @@ function OceanGame() {
           this.boat = this.add.image(this.PORT_X + 80, this.PORT_Y + 80, "boat_idle_1");
           this.boat.setScale(0.12);
           this.boat.setDepth(30);
+          this.boatBobBase = this.boat.y;
 
           this.cameras.main.startFollow(this.boat, true, 0.08, 0.08);
+          this.cameras.main.setRoundPixels(true);
 
           this.keys = this.input.keyboard?.addKeys({
             up: "W", down: "S", left: "A", right: "D",
@@ -369,7 +385,48 @@ function OceanGame() {
             }
           }
 
-          for (let i = 0; i < 140; i++) {
+          // Deep sea darkening overlay
+          const deepZone = this.add.rectangle(
+            this.WORLD_WIDTH * 0.78,
+            this.WORLD_HEIGHT * 0.72,
+            this.WORLD_WIDTH * 0.55,
+            this.WORLD_HEIGHT * 0.6,
+            0x020617,
+            0.32
+          );
+          deepZone.setDepth(2);
+          // Deep sea label
+          this.add.text(
+            this.WORLD_WIDTH * 0.55,
+            this.WORLD_HEIGHT * 0.46,
+            "심해 영역",
+            {
+              fontSize: "20px",
+              color: "#7dd3fc",
+              fontStyle: "bold",
+              stroke: "#020617",
+              strokeThickness: 5,
+              fontFamily: '"Press Start 2P", "Courier New", monospace',
+            }
+          ).setDepth(3).setAlpha(0.7);
+
+          // Animated wave-tile overlay (sparse, 60 instances)
+          for (let i = 0; i < 60; i++) {
+            const wx = Phaser.Math.Between(60, this.WORLD_WIDTH - 60);
+            const wy = Phaser.Math.Between(60, this.WORLD_HEIGHT - 60);
+            const distPort = Phaser.Math.Distance.Between(this.PORT_X, this.PORT_Y, wx, wy);
+            if (distPort < 280) continue;
+            const frame = Phaser.Math.Between(1, 3);
+            const wave = this.add.image(wx, wy, `wave_${frame}`);
+            wave.setOrigin(0.5);
+            wave.setDisplaySize(96, 96);
+            wave.setAlpha(0.32);
+            wave.setDepth(4);
+            wave.setData("phase", Phaser.Math.Between(0, 600));
+            this.waveOverlays.push(wave);
+          }
+
+          for (let i = 0; i < 180; i++) {
             const sparkle = this.add.circle(
               Phaser.Math.Between(40, this.WORLD_WIDTH - 40),
               Phaser.Math.Between(40, this.WORLD_HEIGHT - 40),
@@ -377,17 +434,109 @@ function OceanGame() {
               0xffffff,
               Phaser.Math.FloatBetween(0.14, 0.42)
             );
+            sparkle.setDepth(5);
             this.tweens.add({ targets: sparkle, alpha: 0.02, duration: Phaser.Math.Between(900, 2200), yoyo: true, repeat: -1 });
+          }
+
+          // Vignette overlay (UI layer)
+          this.vignette = this.add.graphics().setScrollFactor(0).setDepth(115);
+          this.drawVignette();
+        }
+
+        drawVignette() {
+          if (!this.vignette) return;
+          const w = this.scale.width, h = this.scale.height;
+          this.vignette.clear();
+          const layers = 20;
+          for (let i = 0; i < layers; i++) {
+            const a = (i / layers) * 0.55;
+            this.vignette.lineStyle(8, 0x000000, a / 4);
+            this.vignette.strokeRect(i * 4, i * 4, w - i * 8, h - i * 8);
+          }
+        }
+
+        spawnBuoys() {
+          const positions = [
+            { x: 700, y: 350 },
+            { x: 1380, y: 480 },
+            { x: 980, y: 880 },
+            { x: 1850, y: 760 },
+            { x: 1620, y: 1280 },
+          ];
+          for (const p of positions) {
+            const c = this.add.container(p.x, p.y);
+            const post = this.add.rectangle(0, 6, 6, 18, 0x3b2208).setOrigin(0.5);
+            const float = this.add.rectangle(0, -6, 18, 14, 0xfacc15).setOrigin(0.5);
+            const stripe = this.add.rectangle(0, -6, 18, 4, 0xb91c1c).setOrigin(0.5);
+            const flag = this.add.rectangle(8, -18, 10, 8, 0x22d3ee).setOrigin(0, 0.5);
+            const wake = this.add.ellipse(0, 14, 30, 6, 0xffffff, 0.35).setOrigin(0.5);
+            c.add([wake, post, float, stripe, flag]);
+            c.setDepth(11);
+            this.tweens.add({ targets: c, y: p.y - 3, duration: Phaser.Math.Between(900, 1400), yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+            this.buoys.push(c);
+          }
+        }
+
+        spawnCrates() {
+          const positions = [
+            { x: 1240, y: 740 },
+            { x: 540, y: 1180 },
+            { x: 2280, y: 1500 },
+          ];
+          for (const p of positions) {
+            const c = this.add.container(p.x, p.y);
+            const shadow = this.add.ellipse(0, 12, 40, 6, 0x000000, 0.45).setOrigin(0.5);
+            const box = this.add.rectangle(0, 0, 32, 28, 0x7c4d24).setOrigin(0.5);
+            const rim = this.add.rectangle(0, -12, 32, 4, 0xa07033).setOrigin(0.5);
+            const strap1 = this.add.rectangle(0, -2, 32, 3, 0xfacc15).setOrigin(0.5);
+            const strap2 = this.add.rectangle(0, 8, 32, 3, 0xfacc15).setOrigin(0.5);
+            const wake = this.add.ellipse(0, 18, 36, 4, 0xffffff, 0.35).setOrigin(0.5);
+            c.add([shadow, wake, box, rim, strap1, strap2]);
+            c.setDepth(11);
+            this.tweens.add({ targets: c, y: p.y - 2, angle: 4, duration: Phaser.Math.Between(1200, 1800), yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+            this.crates.push(c);
           }
         }
 
         spawnLandmarks() {
-          const port = this.add.rectangle(this.PORT_X, this.PORT_Y, 170, 120, 0x78350f, 0.9);
-          port.setStrokeStyle(5, 0xfacc15, 0.9);
-          port.setDepth(10);
-          this.add.text(this.PORT_X - 48, this.PORT_Y - 15, "⚓ 항구", {
-            fontSize: "22px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 4,
+          // Pixel pier (port platform)
+          const dock = this.add.rectangle(this.PORT_X, this.PORT_Y, 170, 120, 0x7c4d24, 0.95);
+          dock.setStrokeStyle(4, 0x3b2208, 1);
+          dock.setDepth(10);
+          // plank stripes
+          for (let i = -55; i <= 55; i += 16) {
+            const plank = this.add.rectangle(this.PORT_X, this.PORT_Y + i, 168, 1, 0x3b2208, 0.7);
+            plank.setDepth(11);
+          }
+          // dock posts in water
+          for (const off of [-70, 70]) {
+            const post = this.add.rectangle(this.PORT_X + off, this.PORT_Y + 70, 8, 18, 0x3b2208).setDepth(9);
+            post.setStrokeStyle(1, 0x000000, 0.7);
+          }
+          // moored boats next to harbor
+          const m1 = this.add.image(this.PORT_X - 100, this.PORT_Y + 60, "boat_top");
+          m1.setScale(0.08).setDepth(11).setRotation(Math.PI / 2);
+          this.tweens.add({ targets: m1, y: m1.y + 4, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+          const m2 = this.add.image(this.PORT_X + 100, this.PORT_Y + 60, "boat_top");
+          m2.setScale(0.08).setDepth(11).setRotation(-Math.PI / 2);
+          this.tweens.add({ targets: m2, y: m2.y + 4, duration: 1500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+
+          this.add.text(this.PORT_X - 60, this.PORT_Y - 75, "⚓ 항구", {
+            fontSize: "20px",
+            color: "#facc15",
+            fontStyle: "bold",
+            stroke: "#020617",
+            strokeThickness: 5,
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
           }).setDepth(20);
+
+          // Fish nearby sign on dock entrance
+          const signTex = this.textures.exists("fish_nearby_sign") ? "fish_nearby_sign" : "";
+          if (signTex) {
+            const sign = this.add.image(this.PORT_X + 130, this.PORT_Y - 30, signTex);
+            sign.setScale(0.4).setDepth(20).setAlpha(0.85);
+            this.tweens.add({ targets: sign, y: sign.y - 4, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+          }
 
           const landmarks = [
             ["island_tropical", 520, 460, 0.28],
@@ -402,16 +551,52 @@ function OceanGame() {
             const island = this.add.image(x, y, texture);
             island.setScale(scale);
             island.setDepth(6);
+            // shadow ring around island
+            const ring = this.add.ellipse(x, y + 10, 200 * scale * 2, 50 * scale * 2, 0x020617, 0.35);
+            ring.setDepth(5);
           }
 
-          const wreck = this.add.rectangle(2380, 1030, 140, 50, 0x3f2f1f, 0.85);
-          wreck.setAngle(-18);
-          wreck.setStrokeStyle(3, 0xf97316, 0.9);
+          // Wrecked ship: tilted dark island silhouette + foam
+          const wreck = this.add.image(2380, 1030, "island_rocky");
+          wreck.setScale(0.18);
+          wreck.setAngle(-32);
+          wreck.setTint(0x1a0e02);
           wreck.setDepth(8);
-          this.add.text(2310, 960, "난파선", { fontSize: "18px", color: "#fed7aa", stroke: "#000000", strokeThickness: 4 }).setDepth(20);
+          const wreckMast = this.add.rectangle(2380, 1010, 4, 70, 0x1e293b);
+          wreckMast.setAngle(-32);
+          wreckMast.setDepth(8);
+          // foam around wreck
+          for (let i = 0; i < 5; i++) {
+            const f = this.add.ellipse(
+              2380 + Math.cos(i) * 60,
+              1030 + Math.sin(i) * 30,
+              30, 6, 0xffffff, 0.4
+            );
+            f.setDepth(7);
+            this.tweens.add({ targets: f, alpha: 0.05, duration: Phaser.Math.Between(900, 1400), yoyo: true, repeat: -1 });
+          }
+          this.add.text(2310, 960, "난파선", {
+            fontSize: "16px",
+            color: "#fed7aa",
+            fontStyle: "bold",
+            stroke: "#020617",
+            strokeThickness: 5,
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
+          }).setDepth(20);
 
+          // Fog patch
           this.add.circle(2450, 720, 280, 0xffffff, 0.08).setDepth(3);
-          this.add.text(2360, 650, "🌫️ 안개 해역", { fontSize: "18px", color: "#e0f2fe", stroke: "#000000", strokeThickness: 4 }).setDepth(20);
+          this.add.text(2360, 650, "🌫️ 안개 해역", {
+            fontSize: "14px",
+            color: "#e0f2fe",
+            fontStyle: "bold",
+            stroke: "#020617",
+            strokeThickness: 5,
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
+          }).setDepth(20);
+
+          this.spawnBuoys();
+          this.spawnCrates();
         }
 
         spawnFishField() {
@@ -463,32 +648,94 @@ function OceanGame() {
         }
 
         createHud() {
-          this.hudText = this.add.text(14, 58, "", {
-            fontSize: "14px", color: "#ffffff", fontStyle: "bold", backgroundColor: "rgba(0,0,0,0.55)", padding: { x: 9, y: 7 },
+          // Pixel wood HUD frame (top-left)
+          this.hudBox = this.add.graphics().setScrollFactor(0).setDepth(99);
+
+          this.hudText = this.add.text(20, 58, "", {
+            fontSize: "11px",
+            color: "#facc15",
+            fontStyle: "bold",
+            stroke: "#020617",
+            strokeThickness: 3,
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
+            lineSpacing: 6,
           }).setScrollFactor(0).setDepth(100);
 
-          this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 118, "", {
-            fontSize: "21px", color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 5,
+          this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 138, "", {
+            fontSize: "15px",
+            color: "#fde047",
+            align: "center",
+            fontStyle: "bold",
+            stroke: "#020617",
+            strokeThickness: 5,
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
           }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 
-          this.eventText = this.add.text(this.scale.width / 2, 118, "", {
-            fontSize: "18px", color: "#fde047", align: "center", fontStyle: "bold", backgroundColor: "rgba(0,0,0,0.55)", padding: { x: 12, y: 8 },
+          this.eventText = this.add.text(this.scale.width / 2, 130, "", {
+            fontSize: "13px",
+            color: "#fde047",
+            align: "center",
+            fontStyle: "bold",
+            backgroundColor: "rgba(7,24,43,0.85)",
+            padding: { x: 14, y: 10 },
+            stroke: "#020617",
+            strokeThickness: 3,
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
           }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setDepth(110);
 
           this.minimap = this.add.graphics().setScrollFactor(0).setDepth(101);
-          this.minimapPort = this.add.circle(0, 0, 3, 0xfacc15, 1).setScrollFactor(0).setDepth(102);
-          this.minimapBoat = this.add.circle(0, 0, 4, 0x22d3ee, 1).setScrollFactor(0).setDepth(103);
+          this.minimapPort = this.add.rectangle(0, 0, 6, 6, 0xfacc15, 1).setScrollFactor(0).setDepth(102);
+          this.minimapWreck = this.add.rectangle(0, 0, 5, 5, 0xf87171, 1).setScrollFactor(0).setDepth(102);
+          this.minimapBoat = this.add.rectangle(0, 0, 6, 6, 0x22d3ee, 1).setScrollFactor(0).setDepth(103);
+        }
+
+        drawHudBox() {
+          if (!this.hudBox) return;
+          this.hudBox.clear();
+          // approximate text height
+          const w = 280, h = 70, x = 8, y = 50;
+          // outer pixel frame (cyan)
+          this.hudBox.fillStyle(0x67e8f9, 1);
+          this.hudBox.fillRect(x - 4, y - 4, w + 8, h + 8);
+          this.hudBox.fillStyle(0x020617, 1);
+          this.hudBox.fillRect(x - 2, y - 2, w + 4, h + 4);
+          // inner wood
+          this.hudBox.fillStyle(0x07182b, 1);
+          this.hudBox.fillRect(x, y, w, h);
+          // gold accent strip
+          this.hudBox.fillStyle(0xfacc15, 1);
+          this.hudBox.fillRect(x, y, 4, h);
         }
 
         drawMinimap() {
-          const w = 112, h = 88, x = this.scale.width - w - 12, y = 58;
+          const w = 132, h = 100, x = this.scale.width - w - 12, y = 58;
           this.minimap.clear();
-          this.minimap.fillStyle(0x020617, 0.62);
-          this.minimap.fillRoundedRect(x, y, w, h, 10);
-          this.minimap.lineStyle(2, 0x67e8f9, 0.45);
-          this.minimap.strokeRoundedRect(x, y, w, h, 10);
+          // outer pixel frame
+          this.minimap.fillStyle(0x67e8f9, 1);
+          this.minimap.fillRect(x - 3, y - 3, w + 6, h + 6);
+          this.minimap.fillStyle(0x020617, 1);
+          this.minimap.fillRect(x, y, w, h);
+          // shallow zone (around port)
+          const portX = x + (this.PORT_X / this.WORLD_WIDTH) * w;
+          const portY = y + (this.PORT_Y / this.WORLD_HEIGHT) * h;
+          this.minimap.fillStyle(0x0e7490, 0.7);
+          this.minimap.fillCircle(portX, portY, 18);
+          // deep zone marker
+          this.minimap.fillStyle(0x0c1e2e, 0.9);
+          this.minimap.fillRect(x + w * 0.5, y + h * 0.4, w * 0.5, h * 0.6);
+          // grid lines
+          this.minimap.lineStyle(1, 0x1e3a5f, 0.6);
+          for (let gx = 0; gx <= 4; gx++) this.minimap.lineBetween(x + (gx * w) / 4, y, x + (gx * w) / 4, y + h);
+          for (let gy = 0; gy <= 3; gy++) this.minimap.lineBetween(x, y + (gy * h) / 3, x + w, y + (gy * h) / 3);
+          // dashed border
+          this.minimap.lineStyle(2, 0x67e8f9, 0.85);
+          this.minimap.strokeRect(x + 1, y + 1, w - 2, h - 2);
+
           this.minimapBoat.setPosition(x + (this.boat.x / this.WORLD_WIDTH) * w, y + (this.boat.y / this.WORLD_HEIGHT) * h);
-          this.minimapPort.setPosition(x + (this.PORT_X / this.WORLD_WIDTH) * w, y + (this.PORT_Y / this.WORLD_HEIGHT) * h);
+          this.minimapPort.setPosition(portX, portY);
+          if (this.minimapWreck) {
+            this.minimapWreck.setPosition(x + (2380 / this.WORLD_WIDTH) * w, y + (1030 / this.WORLD_HEIGHT) * h);
+          }
         }
 
         createBattlePanel() {
@@ -882,7 +1129,9 @@ function OceanGame() {
         update(_time: number, delta: number) {
           this.animTimer += delta;
           this.handleKeyboardInput();
+          this.drawHudBox();
           this.drawMinimap();
+          this.updateWaveOverlays();
 
           // 낚시 전투 중에는 이동 업데이트가 중단되므로,
           // 멀티플레이 상태 동기화는 전투 분기보다 먼저 실행해야 한다.
@@ -898,6 +1147,22 @@ function OceanGame() {
           this.updateFishAI(delta);
           this.detectFish();
           this.refreshHud();
+        }
+
+        updateWaveOverlays() {
+          const frame = Math.floor(this.animTimer / 220) % 3;
+          const tex = `wave_${frame + 1}`;
+          for (const w of this.waveOverlays) {
+            const phase = (w.getData("phase") || 0) + this.animTimer * 0.001;
+            w.x += Math.sin(phase) * 0.05;
+            const newFrame = (frame + (Math.floor(phase) % 3)) % 3;
+            const wantTex = `wave_${newFrame + 1}`;
+            if (w.texture && w.texture.key !== wantTex) {
+              w.setTexture(wantTex);
+            } else if (!w.texture) {
+              w.setTexture(tex);
+            }
+          }
         }
 
 
@@ -1191,18 +1456,32 @@ function OceanGame() {
           const engine = this.saveData.upgrades.engine || 0;
           const speed = 4.5 + engine * 0.7;
           const moving = this.move.x !== 0 || this.move.y !== 0;
+          const dt = delta / 16.6;
+
           if (moving && this.fuel > 0) {
-            this.boat.x += this.move.x * speed * (delta / 16.6);
-            this.boat.y += this.move.y * speed * (delta / 16.6);
-            this.fuel -= 0.018 * (delta / 16.6);
+            this.boat.x += this.move.x * speed * dt;
+            this.boat.y += this.move.y * speed * dt;
+            this.fuel -= 0.018 * dt;
+            // subtle camera shake when accelerating fast
+            if (Math.abs(this.move.x) > 0.6 || Math.abs(this.move.y) > 0.6) {
+              if (Math.random() < 0.04) this.cameras.main.shake(80, 0.0025);
+            }
           } else if (moving && this.fuel <= 0) {
             this.showEvent("⛽ 연료가 없습니다. 항구로 돌아가세요.", "#fca5a5");
           }
           this.boat.x = Phaser.Math.Clamp(this.boat.x, 50, this.WORLD_WIDTH - 50);
           this.boat.y = Phaser.Math.Clamp(this.boat.y, 50, this.WORLD_HEIGHT - 50);
+
+          // Boat bobbing offset, applied as a delta so it does not accumulate.
+          const bobAmp = moving ? 1.2 : 2.6;
+          const bob = Math.sin(this.animTimer / 220) * bobAmp;
+          this.boat.y = this.boat.y - this.lastBob + bob;
+          this.lastBob = bob;
+
           if (moving) {
             this.boat.rotation = Math.atan2(this.move.y, this.move.x) + Math.PI / 2;
             this.boat.setTexture(Math.floor(this.animTimer / 180) % 2 === 0 ? "boat_move_1" : "boat_move_2");
+            this.boat.setDepth(30);
           } else {
             this.boat.setTexture(Math.floor(this.animTimer / 550) % 2 === 0 ? "boat_idle_1" : "boat_idle_2");
           }
@@ -1328,17 +1607,27 @@ function OceanGame() {
   }
 
   return (
-    <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
-      <div ref={gameRef} className="h-full w-full" />
+    <main className="pixel-vignette relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
+      <div ref={gameRef} className="h-full w-full sea-bloom" />
 
-      <div className="absolute left-3 top-3 z-50 flex gap-1.5">
-        <a href="/harbor" className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">⚓</a>
-        <button onClick={openBag} className="rounded-lg bg-black/55 px-2.5 py-2 text-[11px] font-black text-white backdrop-blur">🎒</button>
-        <button onClick={returnHarbor} className="rounded-lg bg-amber-400 px-2.5 py-2 text-[11px] font-black text-slate-950 shadow-lg">귀환</button>
+      <div className="pixel-hud-bar absolute left-2 top-2 z-50 flex flex-wrap items-center gap-1 text-[8px] sm:left-3 sm:top-3 sm:gap-2 sm:text-[10px]">
+        <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">
+          ⚓ HARBOR
+        </a>
+        <span className="hidden text-slate-400 sm:inline">|</span>
+        <button onClick={openBag} className="text-yellow-200">
+          🎒 BAG
+        </button>
+        <span className="hidden text-slate-400 sm:inline">|</span>
+        <button onClick={returnHarbor} className="text-rose-200">
+          ⛵ 귀환
+        </button>
       </div>
 
-      <div className="pointer-events-none absolute right-3 top-3 z-50 hidden rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white/80 backdrop-blur sm:block">
-        PC: WASD/방향키 이동 · Space/Enter 낚시
+      <div className="pointer-events-none absolute right-3 top-2 z-50 hidden sm:block">
+        <div className="pixel-hud-bar text-[10px]">
+          PC: WASD/ARROW · SPACE/ENTER · E
+        </div>
       </div>
 
       <div
@@ -1348,12 +1637,12 @@ function OceanGame() {
         onPointerUp={releaseMove}
         onPointerCancel={releaseMove}
         onLostPointerCapture={releaseMove}
-        className="absolute bottom-6 left-5 z-50 h-32 w-32 rounded-full border border-white/15 bg-black/30 backdrop-blur"
+        className="absolute bottom-3 left-3 z-50 h-24 w-24 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"
         style={{ touchAction: "none" }}
       >
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/20 bg-cyan-400/10" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300/30 bg-cyan-400/10 sm:h-20 sm:w-20" />
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 rounded-full border-2 border-cyan-200 bg-cyan-400/80 shadow-xl shadow-cyan-400/30"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-10 w-10 rounded-full border-2 border-cyan-200 bg-cyan-400/85 shadow-xl shadow-cyan-400/40 sm:h-12 sm:w-12"
           style={{ transform: `translate(calc(-50% + ${stick.x}px), calc(-50% + ${stick.y}px))` }}
         />
       </div>
@@ -1361,14 +1650,22 @@ function OceanGame() {
       <button
         type="button"
         onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); fish(); }}
-        className="absolute bottom-9 right-5 z-50 h-24 w-24 rounded-full border-4 border-amber-900 bg-blue-600 text-xl font-black text-white shadow-2xl active:scale-95"
-        style={{ backgroundImage: "url('/assets/ui/hook_button.png')", backgroundSize: "cover", backgroundPosition: "center", touchAction: "none", color: "transparent" }}
+        className="absolute bottom-5 right-3 z-50 h-20 w-20 sm:bottom-9 sm:right-5 sm:h-24 sm:w-24"
+        style={{
+          backgroundImage: "url('/assets/ui/hook_button.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          touchAction: "none",
+          color: "transparent",
+          boxShadow: "0 0 0 3px #020617, 0 0 0 6px #facc15, 0 6px 0 rgba(0,0,0,0.5)",
+          imageRendering: "pixelated",
+        }}
       >
         낚시
       </button>
 
-      <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/70 backdrop-blur sm:hidden">
-        탐험 · 가방 적재 · 항구 귀환 · 판매
+      <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 sm:hidden">
+        <div className="pixel-hud-bar text-[8px]">탐험 · 가방 · 귀환</div>
       </div>
 
       {bagOpen && (
