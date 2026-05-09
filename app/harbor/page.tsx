@@ -1340,9 +1340,11 @@ export default function HarborPage() {
     [save]
   );
   const aquariumIncome = getAquariumIncome(save);
-  const today = useMemo(() => {
+  const [today, setToday] = useState("--.--");
+
+  useEffect(() => {
     const d = new Date();
-    return `${d.getMonth() + 1}.${d.getDate()}`;
+    setToday(`${d.getMonth() + 1}.${d.getDate()}`);
   }, []);
 
   const nearestSpot = useMemo(
