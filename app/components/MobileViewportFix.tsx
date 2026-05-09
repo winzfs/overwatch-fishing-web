@@ -10,6 +10,10 @@ function isGamePage() {
 function forceMobileScale() {
   if (!isGamePage()) return;
 
+  const visualWidth = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+  const visualHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+  const dpr = Math.max(window.devicePixelRatio || 1, 1);
+
   document.documentElement.style.width = "100%";
   document.documentElement.style.minHeight = "100%";
   document.body.style.width = "100%";
@@ -20,7 +24,9 @@ function forceMobileScale() {
 
   for (const canvas of canvases) {
     const el = canvas as HTMLCanvasElement;
-    const isMiniMap = el.className?.toString().includes("pixel-mini-map");
+    const classText = el.className?.toString() || "";
+    const isMiniMap = classText.includes("pixel-mini-map");
+    const isHarborCanvas = classText.includes("sea-bloom");
 
     if (isMiniMap) {
       el.style.display = "none";
@@ -37,6 +43,15 @@ function forceMobileScale() {
       parent.style.position = parent.style.position || "relative";
     }
 
+    if (!isHarborCanvas) {
+      const nextWidth = Math.round(visualWidth * dpr * 1.65);
+      const nextHeight = Math.round(visualHeight * dpr * 1.65);
+
+      if (el.width !== nextWidth) el.width = nextWidth;
+      if (el.height !== nextHeight) el.height = nextHeight;
+    }
+
+    el.style.display = "block";
     el.style.width = "100vw";
     el.style.height = "100dvh";
     el.style.maxWidth = "none";
@@ -44,9 +59,9 @@ function forceMobileScale() {
     el.style.objectFit = "cover";
     el.style.imageRendering = "pixelated";
 
-    if (!el.className?.toString().includes("sea-bloom")) {
+    if (!isHarborCanvas) {
       el.style.transformOrigin = "center center";
-      el.style.transform = "scale(1.55)";
+      el.style.transform = "scale(1.35)";
     }
   }
 
