@@ -280,3 +280,54 @@ h3 {
     0 18px 38px rgba(2, 6, 23, 0.6);
   border-radius: 0 !important;
 }
+
+/* ---------- Mobile readability overrides ---------- */
+
+.sea-bloom {
+  height: 100% !important;
+  object-fit: cover !important;
+  width: 100% !important;
+}
+
+@media (max-width: 640px) {
+  .pixel-hud-bar {
+    font-size: 11px !important;
+    line-height: 1.6 !important;
+    max-width: calc(100vw - 16px);
+    padding: 10px 12px !important;
+  }
+
+  .pixel-text-sm {
+    font-size: 10px !important;
+    line-height: 1.65 !important;
+  }
+
+  .pixel-btn {
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+    padding: 14px 18px !important;
+  }
+
+  .pixel-mini-map {
+    display: none !important;
+  }
+
+  .pixel-vignette::after {
+    box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.52);
+  }
+
+  [class*="border-cyan-300/40"][class*="rounded-full"] {
+    height: 8rem !important;
+    width: 8rem !important;
+  }
+
+  [class*="border-cyan-300/30"][class*="bg-cyan-400/10"] {
+    height: 5rem !important;
+    width: 5rem !important;
+  }
+
+  [class*="border-cyan-200"][class*="bg-cyan-400"] {
+    height: 3.5rem !important;
+    width: 3.5rem !important;
+  }
+}
