@@ -883,14 +883,20 @@ function OceanGame() {
           this.animTimer += delta;
           this.handleKeyboardInput();
           this.drawMinimap();
+
+          // 낚시 전투 중에는 이동 업데이트가 중단되므로,
+          // 멀티플레이 상태 동기화는 전투 분기보다 먼저 실행해야 한다.
+          this.updateMultiplayer(delta);
+
           if (this.isFishing) {
             this.updateBattle(delta);
+            this.refreshHud();
             return;
           }
+
           this.updateMovement(delta);
           this.updateFishAI(delta);
           this.detectFish();
-          this.updateMultiplayer(delta);
           this.refreshHud();
         }
 
