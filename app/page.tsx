@@ -34,6 +34,10 @@ export default function Home() {
             🌐 MMO 대형 확장안
           </a>
 
+          <a href="/game" className="rounded-2xl border border-cyan-300/30 bg-cyan-300/15 px-6 py-4 text-lg font-black text-cyan-100 backdrop-blur active:scale-95">
+            🧪 Canvas 실험 모드
+          </a>
+
           <div className="grid grid-cols-3 gap-3">
             <a href="/bag" className="rounded-2xl border border-white/10 bg-white/10 py-4 font-bold">🎒 가방</a>
             <a href="/collection" className="rounded-2xl border border-white/10 bg-white/10 py-4 font-bold">📖 도감</a>
