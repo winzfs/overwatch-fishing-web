@@ -1357,6 +1357,11 @@ export default function HarborPage() {
   }
 
   function handleInteract(id: HarborSpot["id"]) {
+    if (id === "seaGate") {
+      window.location.href = "/prepare";
+      return;
+    }
+
     setPanel(id);
     setShakeTrigger((n) => n + 1);
   }
