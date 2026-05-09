@@ -1711,35 +1711,25 @@ export default function HarborPage() {
       <GameModal
         title="출항 게이트"
         icon="⚓"
-        desc="레벨 조건을 만족한 해역으로 출항합니다."
+        desc="출항 준비 화면으로 이동합니다."
         onClose={() => setPanel("none")}
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {regions.map((region) => {
-            const unlocked = isRegionUnlocked(region.id, save);
-            return (
-              <Link
-                key={region.id}
-                href={`/prepare?region=${region.id}`}
-                onClick={(event) => {
-                  if (!unlocked) {
-                    event.preventDefault();
-                    setMessage("레벨이나 장비 조건이 부족합니다.");
-                  }
-                }}
-                className={`pixel-panel p-5 ${
-                  unlocked ? "" : "opacity-60"
-                }`}
-              >
-                <p className="text-4xl">{region.emoji}</p>
-                <h3 className="pixel-text mt-3 text-sm text-white">{region.name}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-300">{region.desc}</p>
-                <p className={`pixel-text-sm mt-4 ${unlocked ? "text-cyan-200" : "text-rose-200"}`}>
-                  {unlocked ? "출항 가능" : "잠김"}
-                </p>
-              </Link>
-            );
-          })}
+        <div className="pixel-panel p-5 text-center">
+          <p className="pixel-text text-base text-cyan-100">
+            🚤 출항 준비
+          </p>
+
+          <p className="mt-4 text-sm leading-6 text-slate-300">
+            지역, 미끼, 얼음 선택은 출항 준비 화면에서
+            한 번만 진행합니다.
+          </p>
+
+          <Link
+            href="/prepare"
+            className="pixel-btn pixel-btn-cyan mt-6 inline-block"
+          >
+            출항 준비하기
+          </Link>
         </div>
       </GameModal>
     );
