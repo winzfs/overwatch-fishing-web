@@ -26,7 +26,6 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: hidden;
-  overscroll-behavior: none;
 }
 
 a {
@@ -106,38 +105,6 @@ button:active {
   gap: 1rem;
   align-items: stretch;
   min-height: 0;
-}
-
-.game-canvas-frame {
-  position: relative;
-  width: 100%;
-}
-
-.game-canvas-loading,
-.game-canvas-error {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  border-radius: 1.35rem;
-  background: rgba(2, 6, 23, .74);
-  color: #bae6fd;
-  font-weight: 900;
-  pointer-events: none;
-  backdrop-filter: blur(10px);
-}
-
-.game-canvas-error {
-  background: rgba(127, 29, 29, .82);
-  color: #fee2e2;
-  padding: 1rem;
-  text-align: center;
-}
-
-.game-canvas-frame:focus-within .game-canvas {
-  border-color: rgba(103, 232, 249, .72);
-  box-shadow: 0 24px 90px rgba(8, 47, 73, .55), 0 0 0 4px rgba(34, 211, 238, .14), inset 0 0 80px rgba(34, 211, 238, .12);
 }
 
 .game-canvas {
