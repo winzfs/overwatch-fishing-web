@@ -18,7 +18,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-5 max-w-xl text-base leading-7 text-slate-300 sm:text-xl">
-          물고기를 잡아 가방에 담고, 항구에서 판매하고, 장비를 업그레이드해 더 먼 바다로 나아가세요.
+          물고기를 잡아 가방에 담고, 항구에서 판매하고, 장비를 업그레이드해 더 먼 바다로 나아가세요. 이제 MMO 선단, 다이빙 탐사, 항구 경영까지 확장합니다.
         </p>
 
         <div className="mt-10 grid w-full max-w-md gap-3">
@@ -28,6 +28,10 @@ export default function Home() {
 
           <a href="/prepare" className="rounded-2xl border border-white/10 bg-white/10 px-6 py-4 text-lg font-bold backdrop-blur active:scale-95">
             🚤 바로 출항 준비
+          </a>
+
+          <a href="/mmo" className="rounded-2xl border border-fuchsia-300/30 bg-fuchsia-300/15 px-6 py-4 text-lg font-black text-fuchsia-100 backdrop-blur active:scale-95">
+            🌐 MMO 대형 확장안
           </a>
 
           <div className="grid grid-cols-3 gap-3">
