@@ -71,33 +71,52 @@ export default function PreparePage() {
   const totalCost = baitInfo.price + ice * 350;
 
   return (
-    <main className="min-h-screen bg-slate-950 p-5 text-white">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex items-center justify-between">
-          <a href="/harbor" className="rounded-xl bg-white/10 px-4 py-2 font-bold">← 항구</a>
+    <main
+      className="pixel-vignette relative min-h-screen overflow-hidden text-white"
+      style={{
+        background:
+          "radial-gradient(circle at 50% 0%, rgba(34,211,238,0.22), transparent 40%), linear-gradient(180deg,#082f49 0%, #061524 45%, #020617 100%)",
+      }}
+    >
+      {/* Animated wave strip at the bottom */}
+      <div
+        aria-hidden
+        className="wave-strip pointer-events-none absolute inset-x-0 bottom-0 h-24 opacity-40"
+      />
+
+      <div className="relative z-10 mx-auto max-w-6xl p-3 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <a href="/harbor" className="pixel-btn pixel-btn-cyan">
+            ← 항구
+          </a>
           <button
             onClick={start}
-            className={`rounded-xl px-5 py-3 font-black ${
-              isRegionUnlocked(selectedRegion, save)
-                ? "bg-cyan-400 text-slate-950"
-                : "bg-red-500/30 text-red-100"
+            className={`pixel-btn ${
+              isRegionUnlocked(selectedRegion, save) ? "" : "pixel-btn-rose"
             }`}
           >
-            {isRegionUnlocked(selectedRegion, save) ? "🚤 출항" : `🔒 Lv.${getRegionRequiredLevel(selectedRegion)} 필요`}
+            {isRegionUnlocked(selectedRegion, save)
+              ? "🚤 출항"
+              : `🔒 Lv.${getRegionRequiredLevel(selectedRegion)} 필요`}
           </button>
         </div>
 
-        <h1 className="mt-8 text-4xl font-black">🚤 출항 준비</h1>
-        <p className="mt-3 text-slate-300">지역, 미끼, 얼음을 선택하고 출항하세요.</p>
+        <header className="mt-6 sm:mt-10">
+          <h1 className="pixel-text text-2xl text-yellow-300 sm:text-3xl">🚤 출항 준비</h1>
+          <p className="pixel-text-sm mt-3 text-slate-300">
+            지역, 미끼, 얼음을 선택하고 출항하세요.
+          </p>
+        </header>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-6 grid gap-4 sm:gap-6 lg:grid-cols-[1.2fr_0.85fr]">
           <section>
-            <h2 className="text-2xl font-black">🗺️ 지역 선택</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <h2 className="pixel-text text-base text-cyan-100 sm:text-lg">🗺️ 지역 선택</h2>
+            <div className="mt-3 grid gap-3 sm:mt-4 sm:gap-4 sm:grid-cols-2">
               {regions.map((r) => {
                 const e = getDailySeaEvent(r.id);
                 const requiredLevel = getRegionRequiredLevel(r.id);
                 const unlocked = playerLevel >= requiredLevel;
+                const isSelected = selectedRegion === r.id;
                 return (
                   <button
                     key={r.id}
@@ -109,29 +128,35 @@ export default function PreparePage() {
                         setMessage("");
                       }
                     }}
-                    className={`rounded-3xl border p-5 text-left active:scale-[0.98] ${
-                      selectedRegion === r.id
-                        ? unlocked
-                          ? "border-cyan-300 bg-cyan-300/10"
-                          : "border-red-300 bg-red-500/10"
-                        : unlocked
-                        ? "border-white/10 bg-white/5"
-                        : "border-white/5 bg-black/35 opacity-70"
-                    }`}
+                    className={`pixel-panel relative overflow-hidden p-4 text-left active:scale-[0.98] ${
+                      isSelected ? "ring-4 ring-yellow-300/70" : ""
+                    } ${unlocked ? "" : "opacity-70"}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    {/* mini wave bg */}
+                    <div
+                      aria-hidden
+                      className="wave-strip pointer-events-none absolute inset-x-0 bottom-0 h-10 opacity-30"
+                    />
+                    <div className="relative flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-4xl">{r.emoji}</div>
-                        <h3 className="mt-3 text-xl font-black">{r.name}</h3>
+                        <div className="text-3xl sm:text-4xl">{r.emoji}</div>
+                        <h3 className="pixel-text mt-3 text-sm text-white sm:text-base">{r.name}</h3>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${unlocked ? "bg-black/35" : "bg-red-500/25 text-red-100"}`}>
+                      <span
+                        className={`pixel-text-sm px-2 py-1 ${
+                          unlocked ? "bg-cyan-400/15 text-cyan-100" : "bg-rose-400/20 text-rose-100"
+                        }`}
+                        style={{ boxShadow: "0 0 0 2px #020617, 0 0 0 3px #67e8f9" }}
+                      >
                         {unlocked ? `${e.emoji} ${e.name}` : `🔒 Lv.${requiredLevel}`}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-slate-300">{r.desc}</p>
+                    <p className="relative mt-3 text-xs leading-5 text-slate-300 sm:text-sm">
+                      {r.desc}
+                    </p>
                     {!unlocked && (
-                      <p className="mt-3 rounded-xl bg-red-500/15 px-3 py-2 text-xs font-bold text-red-100">
-                        현재 Lv.{playerLevel} · Lv.{requiredLevel} 필요
+                      <p className="pixel-text-sm relative mt-3 bg-rose-500/20 px-3 py-2 text-rose-100">
+                        Lv.{playerLevel} · Lv.{requiredLevel} 필요
                       </p>
                     )}
                   </button>
@@ -140,63 +165,113 @@ export default function PreparePage() {
             </div>
           </section>
 
-          <aside>
-            <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
-              <p className="text-sm font-bold text-cyan-100">내 항해 레벨</p>
-              <p className="mt-1 text-3xl font-black text-cyan-300">Lv.{playerLevel}</p>
-              <p className="mt-2 text-xs text-slate-300">EXP {save.exp || 0} / {nextExp}</p>
-              <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/40">
+          <aside className="grid gap-4">
+            <div className="pixel-panel p-4 sm:p-5">
+              <p className="pixel-text-sm text-cyan-100">내 항해 레벨</p>
+              <p className="pixel-text mt-2 text-xl text-yellow-200 sm:text-2xl">Lv.{playerLevel}</p>
+              <p className="pixel-text-sm mt-2 text-slate-300">
+                EXP {save.exp || 0} / {nextExp}
+              </p>
+              <div
+                className="mt-3 h-3 overflow-hidden bg-black/60"
+                style={{ boxShadow: "inset 0 0 0 2px #020617, 0 0 0 2px #67e8f9" }}
+              >
                 <div
-                  className="h-full bg-cyan-400"
+                  className="h-full bg-cyan-300"
                   style={{ width: `${Math.min(100, ((save.exp || 0) / nextExp) * 100)}%` }}
                 />
               </div>
             </div>
 
-            <div className={`rounded-3xl border border-white/10 bg-gradient-to-br ${region.theme} p-5`}>
-              <h2 className="text-2xl font-black">{region.emoji} {region.name}</h2>
-              <p className="mt-3 text-slate-200">{region.desc}</p>
-              <div className="mt-5 rounded-2xl bg-black/30 p-4">
-                <p className="text-sm text-slate-300">오늘의 바다</p>
-                <p className="mt-1 text-xl font-black">{event.emoji} {event.name}</p>
-                <p className="mt-2 text-sm text-slate-300">{event.desc}</p>
+            <div className="pixel-panel-deep relative overflow-hidden p-4 sm:p-5">
+              <div
+                aria-hidden
+                className="wave-strip pointer-events-none absolute inset-x-0 bottom-0 h-12 opacity-25"
+              />
+              <h2 className="pixel-text text-base text-yellow-200 sm:text-lg">
+                {region.emoji} {region.name}
+              </h2>
+              <p className="relative mt-3 text-xs leading-5 text-slate-200 sm:text-sm">
+                {region.desc}
+              </p>
+              <div className="relative mt-4 bg-black/45 p-3" style={{ boxShadow: "inset 0 0 0 2px rgba(103,232,249,0.35)" }}>
+                <p className="pixel-text-sm text-slate-300">오늘의 바다</p>
+                <p className="pixel-text mt-2 text-base text-cyan-100">
+                  {event.emoji} {event.name}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-slate-300 sm:text-sm">{event.desc}</p>
               </div>
             </div>
 
-            <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5">
-              <h2 className="text-2xl font-black">🪱 미끼</h2>
-              <div className="mt-4 grid gap-3">
+            <div className="pixel-panel p-4 sm:p-5">
+              <h2 className="pixel-text text-base text-cyan-100 sm:text-lg">🪱 미끼</h2>
+              <div className="mt-3 grid gap-2 sm:mt-4 sm:gap-3">
                 {baitOptions.map((b) => (
                   <button
                     key={b.id}
                     onClick={() => setBait(b.id)}
-                    className={`rounded-2xl border p-4 text-left ${
-                      bait === b.id ? "border-cyan-300 bg-cyan-300/10" : "border-white/10 bg-black/20"
+                    className={`p-3 text-left active:scale-[0.98] sm:p-4 ${
+                      bait === b.id ? "bg-cyan-400/20" : "bg-black/40"
                     }`}
+                    style={{
+                      boxShadow:
+                        bait === b.id
+                          ? "0 0 0 2px #020617, 0 0 0 4px #facc15"
+                          : "0 0 0 2px #020617, 0 0 0 3px #1e3a5f",
+                    }}
                   >
-                    <div className="font-black">{b.name} {b.price > 0 ? `${b.price.toLocaleString()}G` : "무료"}</div>
-                    <p className="mt-1 text-sm text-slate-300">{b.desc}</p>
+                    <div className="pixel-text-sm text-white">
+                      {b.name} {b.price > 0 ? `${b.price.toLocaleString()}G` : "FREE"}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-300">{b.desc}</p>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5">
-              <h2 className="text-2xl font-black">🧊 얼음</h2>
-              <p className="mt-2 text-sm text-slate-300">얼음은 신선도 하락을 늦춥니다. 1개당 350G</p>
-              <div className="mt-4 flex items-center gap-3">
-                <button onClick={() => setIce(Math.max(0, ice - 1))} className="rounded-xl bg-white/10 px-4 py-3 font-black">-</button>
-                <div className="flex-1 rounded-xl bg-black/30 p-3 text-center text-xl font-black">{ice}</div>
-                <button onClick={() => setIce(Math.min(10, ice + 1))} className="rounded-xl bg-white/10 px-4 py-3 font-black">+</button>
+            <div className="pixel-panel p-4 sm:p-5">
+              <h2 className="pixel-text text-base text-cyan-100 sm:text-lg">🧊 얼음</h2>
+              <p className="pixel-text-sm mt-2 text-slate-300">
+                얼음은 신선도 하락을 늦춥니다. 1개당 350G
+              </p>
+              <div className="mt-3 flex items-center gap-2 sm:mt-4 sm:gap-3">
+                <button
+                  onClick={() => setIce(Math.max(0, ice - 1))}
+                  className="pixel-btn pixel-btn-cyan"
+                >
+                  -
+                </button>
+                <div
+                  className="pixel-text flex-1 bg-black/50 p-3 text-center text-base text-cyan-100"
+                  style={{ boxShadow: "inset 0 0 0 2px rgba(103,232,249,0.45)" }}
+                >
+                  {ice}
+                </div>
+                <button
+                  onClick={() => setIce(Math.min(10, ice + 1))}
+                  className="pixel-btn pixel-btn-cyan"
+                >
+                  +
+                </button>
               </div>
             </div>
 
-            <div className="mt-5 rounded-3xl border border-yellow-300/20 bg-yellow-300/10 p-5">
-              <p className="text-sm text-yellow-100">출항 정보</p>
-              <p className="mt-1 text-xl font-black text-yellow-300">비용 {totalCost.toLocaleString()}G</p>
-              <p className="mt-2 text-sm text-slate-300">보유 {save.gold.toLocaleString()}G</p>
-              <p className="mt-2 text-sm text-slate-300">연료 {fuelLimit(save)} / 적재 {bagWeight(save).toFixed(1)} / {cargoLimit(save)}kg</p>
-              {message && <p className="mt-3 font-bold text-red-200">{message}</p>}
+            <div className="pixel-panel-amber p-4 sm:p-5">
+              <p className="pixel-text-sm text-yellow-100">출항 정보</p>
+              <p className="pixel-text mt-2 text-base text-yellow-200 sm:text-lg">
+                비용 {totalCost.toLocaleString()}G
+              </p>
+              <p className="pixel-text-sm mt-2 text-slate-200">
+                보유 {save.gold.toLocaleString()}G
+              </p>
+              <p className="pixel-text-sm mt-2 text-slate-200">
+                연료 {fuelLimit(save)} / 적재 {bagWeight(save).toFixed(1)} / {cargoLimit(save)}kg
+              </p>
+              {message && (
+                <p className="pixel-text-sm mt-3 bg-rose-500/30 px-3 py-2 text-rose-100">
+                  {message}
+                </p>
+              )}
             </div>
           </aside>
         </div>
