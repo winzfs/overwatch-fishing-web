@@ -16,19 +16,33 @@ export default function CanvasGame() {
   const gameRef = useRef<Game | null>(null);
   const [ready, setReady] = useState(false);
   const [toast, setToast] = useState("게임 엔진을 초기화하는 중...");
+  const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<UiState>({ gold: 0, cargo: 0, collection: 0, metaDepth: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let mounted = true;
     const game = new Game(canvas, {
-      onReady: () => setReady(true),
-      onToast: setToast,
-      onState: setState,
+      onReady: () => {
+        if (mounted) setReady(true);
+      },
+      onToast: (message) => {
+        if (mounted) setToast(message);
+      },
+      onState: (nextState) => {
+        if (mounted) setState(nextState);
+      },
     });
     gameRef.current = game;
-    void game.start();
+    game.start().catch((reason: unknown) => {
+      if (!mounted) return;
+      const message = reason instanceof Error ? reason.message : "게임 엔진 시작에 실패했습니다.";
+      setError(message);
+      setToast(message);
+    });
     return () => {
+      mounted = false;
       game.stop();
       gameRef.current = null;
     };
@@ -38,6 +52,7 @@ export default function CanvasGame() {
     <section className="game-shell" aria-label="Overwatch Fishing playable canvas game">
       <div className="game-canvas-frame">
         {!ready && <div className="game-canvas-loading">스프라이트와 해류 데이터를 불러오는 중...</div>}
+        {error && <div className="game-canvas-error">{error}</div>}
         <canvas ref={canvasRef} className="game-canvas" width={960} height={540} />
       </div>
       <aside className="game-side-panel">

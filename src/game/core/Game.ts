@@ -34,6 +34,9 @@ export class Game {
   private readonly renderer = new RenderSystem();
   private toast = "항구 데이터를 불러오는 중...";
   private context: GameContext;
+  private started = false;
+  private disposed = false;
+  private lastStateKey = "";
 
   constructor(private canvas: HTMLCanvasElement, private callbacks: GameCallbacks = {}) {
     const context = canvas.getContext("2d");
@@ -59,6 +62,9 @@ export class Game {
   }
 
   async start() {
+    if (this.started) return;
+    this.started = true;
+    this.disposed = false;
     this.resize();
     window.addEventListener("resize", this.resize);
     this.input.attach(this.canvas);
@@ -70,11 +76,14 @@ export class Game {
     this.scenes.register(new DiveScene());
     this.scenes.change("harbor");
     await this.assets.preload();
+    if (this.disposed) return;
     this.callbacks.onReady?.();
     this.loop.start((dt) => this.tick(dt));
   }
 
   stop() {
+    this.disposed = true;
+    this.started = false;
     this.loop.stop();
     this.input.detach();
     window.removeEventListener("resize", this.resize);
@@ -85,13 +94,18 @@ export class Game {
     this.renderer.clear(this.context);
     this.scenes.update(this.context, dt);
     this.scenes.render(this.context);
-    this.callbacks.onState?.({
+    const snapshot = {
       mode: this.scenes.activeId,
       gold: this.save.data.gold,
       cargo: this.save.data.cargo.length,
       collection: Object.keys(this.save.data.collection).length,
       metaDepth: this.save.data.metaDepth,
-    });
+    };
+    const stateKey = `${snapshot.mode}:${snapshot.gold}:${snapshot.cargo}:${snapshot.collection}:${snapshot.metaDepth}`;
+    if (stateKey !== this.lastStateKey) {
+      this.lastStateKey = stateKey;
+      this.callbacks.onState?.(snapshot);
+    }
   }
 
   private resize = () => {
