@@ -29,12 +29,14 @@ type OnlinePlayerRow = {
   x: number;
   y: number;
   direction?: string | null;
+  is_fishing?: boolean | null;
   updated_at?: string | null;
 };
 
 type RemotePlayer = {
   sprite: any;
   nameText: any;
+  fishingText: any;
   targetX: number;
   targetY: number;
   lastSeen: number;
@@ -931,7 +933,7 @@ function OceanGame() {
 
           const { data, error } = await supabase
             .from("fishing_online_players")
-            .select("discord_id, display_name, region_id, x, y, direction, updated_at")
+            .select("discord_id, display_name, region_id, x, y, direction, is_fishing, updated_at")
             .eq("region_id", regionId)
             .gt("updated_at", since)
             .limit(MAX_REMOTE_PLAYERS + 1);
@@ -995,9 +997,21 @@ function OceanGame() {
             }).setOrigin(0.5);
             nameText.setDepth(25);
 
+            const fishingText = this.add.text(row.x, row.y - 56, "", {
+              fontSize: "16px",
+              color: "#facc15",
+              align: "center",
+              fontStyle: "bold",
+              stroke: "#020617",
+              strokeThickness: 5,
+            }).setOrigin(0.5);
+            fishingText.setDepth(26);
+            fishingText.setVisible(false);
+
             remote = {
               sprite,
               nameText,
+              fishingText,
               targetX: row.x,
               targetY: row.y,
               lastSeen: Date.now(),
@@ -1010,8 +1024,24 @@ function OceanGame() {
           remote.targetY = Number(row.y) || remote.targetY;
           remote.lastSeen = Date.now();
 
-          if (row.direction === "left") remote.sprite.setFlipX(true);
-          if (row.direction === "right") remote.sprite.setFlipX(false);
+          if (row.direction === "left") {
+            remote.sprite.rotation = -Math.PI / 2;
+            remote.sprite.setFlipX(false);
+          } else if (row.direction === "right") {
+            remote.sprite.rotation = Math.PI / 2;
+            remote.sprite.setFlipX(false);
+          } else if (row.direction === "up") {
+            remote.sprite.rotation = 0;
+            remote.sprite.setFlipX(false);
+          } else if (row.direction === "down") {
+            remote.sprite.rotation = Math.PI;
+            remote.sprite.setFlipX(false);
+          }
+
+          if (remote.fishingText) {
+            remote.fishingText.setText(row.is_fishing ? "🎣 낚시중" : "");
+            remote.fishingText.setVisible(Boolean(row.is_fishing));
+          }
         }
 
         removeRemotePlayer(discordId: string) {
@@ -1020,6 +1050,7 @@ function OceanGame() {
 
           remote.sprite.destroy();
           remote.nameText.destroy();
+          if (remote.fishingText) remote.fishingText.destroy();
           this.otherPlayers.delete(discordId);
         }
 
@@ -1058,6 +1089,7 @@ function OceanGame() {
                 x: Math.round(this.boat.x),
                 y: Math.round(this.boat.y),
                 direction,
+                is_fishing: this.isFishing,
                 updated_at: new Date().toISOString(),
               },
               { onConflict: "discord_id" }
@@ -1091,6 +1123,10 @@ function OceanGame() {
             remote.sprite.y = Phaser.Math.Linear(remote.sprite.y, remote.targetY, 0.22);
             remote.nameText.x = remote.sprite.x;
             remote.nameText.y = remote.sprite.y - 34;
+            if (remote.fishingText) {
+              remote.fishingText.x = remote.sprite.x;
+              remote.fishingText.y = remote.sprite.y - 56;
+            }
           }
         }
 
