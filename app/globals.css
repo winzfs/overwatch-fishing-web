@@ -135,6 +135,11 @@ button:active {
   text-align: center;
 }
 
+.game-canvas-frame:focus-within .game-canvas {
+  border-color: rgba(103, 232, 249, .72);
+  box-shadow: 0 24px 90px rgba(8, 47, 73, .55), 0 0 0 4px rgba(34, 211, 238, .14), inset 0 0 80px rgba(34, 211, 238, .12);
+}
+
 .game-canvas {
   width: 100%;
   aspect-ratio: 16 / 9;

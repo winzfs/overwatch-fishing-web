@@ -50,9 +50,9 @@ export default function CanvasGame() {
 
   return (
     <section className="game-shell" aria-label="Overwatch Fishing playable canvas game">
-      <div className="game-canvas-frame">
+      <div className="game-canvas-frame" aria-busy={!ready}>
         {!ready && <div className="game-canvas-loading">스프라이트와 해류 데이터를 불러오는 중...</div>}
-        {error && <div className="game-canvas-error">{error}</div>}
+        {error && <div className="game-canvas-error" role="alert">{error}</div>}
         <canvas ref={canvasRef} className="game-canvas" width={960} height={540} />
       </div>
       <aside className="game-side-panel">
