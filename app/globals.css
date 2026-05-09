@@ -331,3 +331,63 @@ h3 {
     width: 3.5rem !important;
   }
 }
+
+/* ---------- Mobile ocean / Phaser scale overrides ---------- */
+
+@media (max-width: 640px) {
+  #phaser-game,
+  .phaser-game,
+  [data-phaser-root],
+  [data-phaser-root] > div,
+  [data-phaser-root] canvas,
+  canvas[data-engine="phaser"],
+  canvas[style*="image-rendering"] {
+    min-height: 100dvh !important;
+    min-width: 100vw !important;
+  }
+
+  #phaser-game canvas,
+  .phaser-game canvas,
+  [data-phaser-root] canvas,
+  body canvas:not(.pixel-mini-map) {
+    height: 100dvh !important;
+    max-height: none !important;
+    max-width: none !important;
+    object-fit: cover !important;
+    width: 100vw !important;
+  }
+
+  .pixel-hud-bar,
+  .pixel-stat-pill {
+    font-size: 12px !important;
+    line-height: 1.7 !important;
+  }
+
+  .pixel-text {
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+  }
+
+  .pixel-text-sm,
+  .pixel-panel p,
+  .pixel-panel span,
+  .pixel-panel button,
+  .pixel-modal-shell p,
+  .pixel-modal-shell span,
+  .pixel-modal-shell button {
+    font-size: 11px !important;
+    line-height: 1.7 !important;
+  }
+
+  .pixel-panel,
+  .pixel-panel-deep,
+  .pixel-panel-amber,
+  .pixel-modal-shell {
+    padding: 18px !important;
+  }
+
+  button,
+  a {
+    min-height: 44px;
+  }
+}
