@@ -28,6 +28,7 @@ body {
     linear-gradient(180deg, #082f49 0%, #061524 45%, #020617 100%);
 }
 
+html,
 body {
   color: var(--foreground);
   font-family: "Courier New", monospace;
