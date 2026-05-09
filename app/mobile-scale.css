@@ -1,0 +1,55 @@
+@media (max-width: 640px) {
+  .text-xs {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .text-sm {
+    font-size: 15px !important;
+    line-height: 1.55 !important;
+  }
+
+  .text-base {
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+  }
+
+  .pixel-hud-bar,
+  .pixel-stat-pill {
+    font-size: 13px !important;
+    line-height: 1.7 !important;
+  }
+
+  .pixel-btn,
+  button,
+  a {
+    min-height: 48px;
+  }
+
+  .pixel-btn {
+    font-size: 13px !important;
+    padding: 15px 20px !important;
+  }
+
+  canvas:not(.sea-bloom):not(.pixel-mini-map) {
+    height: 100dvh !important;
+    max-height: none !important;
+    max-width: none !important;
+    min-height: 100dvh !important;
+    min-width: 100vw !important;
+    object-fit: cover !important;
+    transform: scale(1.38) !important;
+    transform-origin: center center !important;
+    width: 100vw !important;
+  }
+
+  .sea-bloom {
+    height: 100dvh !important;
+    object-fit: cover !important;
+    width: 100vw !important;
+  }
+
+  .pixel-mini-map {
+    display: none !important;
+  }
+}
