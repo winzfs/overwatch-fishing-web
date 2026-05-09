@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./mobile-scale.css";
 
 export const metadata: Metadata = {
   title: "Overwatch Fishing MMO",
