@@ -72,7 +72,7 @@ export default function PreparePage() {
 
   return (
     <main
-      className="pixel-vignette relative min-h-screen text-white"
+      className="pixel-vignette relative h-[100dvh] overflow-y-auto text-white"
       style={{
         background:
           "radial-gradient(circle at 50% 0%, rgba(34,211,238,0.22), transparent 40%), linear-gradient(180deg,#082f49 0%, #061524 45%, #020617 100%)",
