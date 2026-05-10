@@ -343,7 +343,6 @@ function OceanGame() {
           this.isMobile = this.scale.width < 900;
 
           this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
-          if (this.isMobile) this.cameras.main.setZoom(1.35);
           this.drawWorld();
           this.spawnLandmarks();
           this.spawnFishField();
@@ -655,7 +654,7 @@ function OceanGame() {
           this.hudBox = this.add.graphics().setScrollFactor(0).setDepth(99);
 
           this.hudText = this.add.text(20, 58, "", {
-            fontSize: this.isMobile ? "16px" : "13px",
+            fontSize: this.isMobile ? "12px" : "13px",
             color: "#facc15",
             fontStyle: "bold",
             stroke: "#020617",
@@ -690,18 +689,12 @@ function OceanGame() {
           this.minimapPort = this.add.rectangle(0, 0, 6, 6, 0xfacc15, 1).setScrollFactor(0).setDepth(102);
           this.minimapWreck = this.add.rectangle(0, 0, 5, 5, 0xf87171, 1).setScrollFactor(0).setDepth(102);
           this.minimapBoat = this.add.rectangle(0, 0, 6, 6, 0x22d3ee, 1).setScrollFactor(0).setDepth(103);
-          if (this.isMobile) {
-            this.minimap.setVisible(false);
-            this.minimapBoat.setVisible(false);
-            this.minimapPort.setVisible(false);
-            this.minimapWreck.setVisible(false);
-          }
         }
 
         drawHudBox() {
           if (!this.hudBox) return;
           this.hudBox.clear();
-          const w = this.isMobile ? 330 : 300, h = this.isMobile ? 88 : 75, x = 8, y = 50;
+          const w = this.isMobile ? 220 : 300, h = this.isMobile ? 82 : 75, x = 8, y = 50;
           // outer pixel frame (cyan)
           this.hudBox.fillStyle(0x67e8f9, 1);
           this.hudBox.fillRect(x - 4, y - 4, w + 8, h + 8);
@@ -716,8 +709,8 @@ function OceanGame() {
         }
 
         drawMinimap() {
-          if (this.isMobile) return;
-          const w = 132, h = 100, x = this.scale.width - w - 12, y = 58;
+          const w = this.isMobile ? 90 : 132, h = this.isMobile ? 68 : 100;
+          const x = this.scale.width - w - 12, y = 58;
           this.minimap.clear();
           // outer pixel frame
           this.minimap.fillStyle(0x67e8f9, 1);
@@ -728,15 +721,18 @@ function OceanGame() {
           const portX = x + (this.PORT_X / this.WORLD_WIDTH) * w;
           const portY = y + (this.PORT_Y / this.WORLD_HEIGHT) * h;
           this.minimap.fillStyle(0x0e7490, 0.7);
-          this.minimap.fillCircle(portX, portY, 18);
+          this.minimap.fillCircle(portX, portY, this.isMobile ? 12 : 18);
           // deep zone marker
           this.minimap.fillStyle(0x0c1e2e, 0.9);
           this.minimap.fillRect(x + w * 0.5, y + h * 0.4, w * 0.5, h * 0.6);
+          // hotspot (어군 밀집 구역)
+          this.minimap.fillStyle(0xf59e0b, 0.7);
+          this.minimap.fillCircle(x + w * 0.75, y + h * 0.65, this.isMobile ? 3 : 4);
           // grid lines
           this.minimap.lineStyle(1, 0x1e3a5f, 0.6);
           for (let gx = 0; gx <= 4; gx++) this.minimap.lineBetween(x + (gx * w) / 4, y, x + (gx * w) / 4, y + h);
           for (let gy = 0; gy <= 3; gy++) this.minimap.lineBetween(x, y + (gy * h) / 3, x + w, y + (gy * h) / 3);
-          // dashed border
+          // border
           this.minimap.lineStyle(2, 0x67e8f9, 0.85);
           this.minimap.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
@@ -803,10 +799,13 @@ function OceanGame() {
           const weight = bagWeight(this.saveData);
           const limit = cargoLimit(this.saveData);
           const dist = this.boat ? Math.floor(Phaser.Math.Distance.Between(this.boat.x, this.boat.y, this.PORT_X, this.PORT_Y)) : 0;
+          const maxDist = Math.hypot(this.WORLD_WIDTH, this.WORLD_HEIGHT);
+          const ratio = dist / maxDist;
+          const zone = ratio < 0.3 ? "🌊연안" : ratio < 0.6 ? "🌀중간" : "🌑심해";
           this.hudText.setText(
             `🎒 ${weight.toFixed(1)} / ${limit}kg   ⛽ ${Math.max(0, Math.floor(this.fuel))}/${fuelLimit(this.saveData)}\n` +
-            `💰 ${this.saveData.gold.toLocaleString()}G   Lv.${getPlayerLevel(this.saveData)}   ✨ ${this.saveData.exp}   🐟 ${this.saveData.caught}\n` +
-            `${this.dailyEvent.emoji} ${this.dailyEvent.name}   ⚓ ${dist}m`
+            `💰 ${this.saveData.gold.toLocaleString()}G   Lv.${getPlayerLevel(this.saveData)}   🐟 ${this.saveData.caught}\n` +
+            `${zone}   ⚓ ${dist}m   ${this.dailyEvent.emoji} ${this.dailyEvent.name}`
           );
         }
 

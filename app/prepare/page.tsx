@@ -72,7 +72,7 @@ export default function PreparePage() {
 
   return (
     <main
-      className="pixel-vignette relative min-h-screen overflow-hidden text-white"
+      className="pixel-vignette relative min-h-screen text-white"
       style={{
         background:
           "radial-gradient(circle at 50% 0%, rgba(34,211,238,0.22), transparent 40%), linear-gradient(180deg,#082f49 0%, #061524 45%, #020617 100%)",
@@ -108,7 +108,7 @@ export default function PreparePage() {
           </p>
         </header>
 
-        <div className="mt-6 grid gap-4 sm:gap-6 lg:grid-cols-[1.2fr_0.85fr]">
+        <div className="mt-6 grid gap-4 sm:gap-6 lg:grid-cols-[1.2fr_0.85fr] pb-8">
           <section>
             <h2 className="pixel-text text-base text-cyan-100 sm:text-lg">🗺️ 지역 선택</h2>
             <div className="mt-3 grid gap-3 sm:mt-4 sm:gap-4 sm:grid-cols-2">
