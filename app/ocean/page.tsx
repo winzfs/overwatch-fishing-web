@@ -340,7 +340,7 @@ function OceanGame() {
         create() {
           this.saveData = loadSave();
           this.fuel = fuelLimit(this.saveData);
-          this.isMobile = this.scale.width < 768;
+          this.isMobile = this.scale.width < 900;
 
           this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
           if (this.isMobile) this.cameras.main.setZoom(1.35);
@@ -349,7 +349,7 @@ function OceanGame() {
           this.spawnFishField();
 
           this.boat = this.add.image(this.PORT_X + 80, this.PORT_Y + 80, "boat_idle_1");
-          this.boat.setScale(this.isMobile ? 0.16 : 0.12);
+          this.boat.setScale(this.isMobile ? 0.17 : 0.14);
           this.boat.setDepth(30);
           this.boatBobBase = this.boat.y;
 
@@ -630,7 +630,7 @@ function OceanGame() {
 
         spawnOneFish(texture: string, x?: number, y?: number) {
           const fish = this.add.image(x ?? Phaser.Math.Between(220, this.WORLD_WIDTH - 120), y ?? Phaser.Math.Between(220, this.WORLD_HEIGHT - 120), texture);
-          fish.setScale(Phaser.Math.FloatBetween(this.isMobile ? 0.10 : 0.07, this.isMobile ? 0.15 : 0.115));
+          fish.setScale(Phaser.Math.FloatBetween(this.isMobile ? 0.11 : 0.09, this.isMobile ? 0.16 : 0.13));
           fish.setAlpha(Phaser.Math.FloatBetween(0.55, 0.92));
           fish.setDepth(14);
           fish.setData("textureName", texture);
@@ -655,7 +655,7 @@ function OceanGame() {
           this.hudBox = this.add.graphics().setScrollFactor(0).setDepth(99);
 
           this.hudText = this.add.text(20, 58, "", {
-            fontSize: this.isMobile ? "14px" : "11px",
+            fontSize: this.isMobile ? "16px" : "13px",
             color: "#facc15",
             fontStyle: "bold",
             stroke: "#020617",
@@ -665,7 +665,7 @@ function OceanGame() {
           }).setScrollFactor(0).setDepth(100);
 
           this.hintText = this.add.text(this.scale.width / 2, this.scale.height - (this.isMobile ? 90 : 138), "", {
-            fontSize: this.isMobile ? "18px" : "15px",
+            fontSize: this.isMobile ? "20px" : "16px",
             color: "#fde047",
             align: "center",
             fontStyle: "bold",
@@ -675,7 +675,7 @@ function OceanGame() {
           }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 
           this.eventText = this.add.text(this.scale.width / 2, this.isMobile ? 90 : 130, "", {
-            fontSize: this.isMobile ? "14px" : "13px",
+            fontSize: this.isMobile ? "15px" : "14px",
             color: "#fde047",
             align: "center",
             fontStyle: "bold",
@@ -701,7 +701,7 @@ function OceanGame() {
         drawHudBox() {
           if (!this.hudBox) return;
           this.hudBox.clear();
-          const w = this.isMobile ? 320 : 280, h = this.isMobile ? 82 : 70, x = 8, y = 50;
+          const w = this.isMobile ? 330 : 300, h = this.isMobile ? 88 : 75, x = 8, y = 50;
           // outer pixel frame (cyan)
           this.hudBox.fillStyle(0x67e8f9, 1);
           this.hudBox.fillRect(x - 4, y - 4, w + 8, h + 8);
@@ -779,10 +779,10 @@ function OceanGame() {
           this.promptHookButton.setDepth(8);
 
           const isMob = this.isMobile;
-          const barH = isMob ? 44 : 32;
-          const hitH = isMob ? 62 : 46;
-          const ptrH = isMob ? 90 : 72;
-          const tensH = isMob ? 32 : 24;
+          const barH = isMob ? 44 : 36;
+          const hitH = isMob ? 62 : 50;
+          const ptrH = isMob ? 90 : 80;
+          const tensH = isMob ? 32 : 28;
           this.timingBar = this.add.rectangle(0, 18, width * 0.72, barH, 0x172554);
           this.timingBar.setStrokeStyle(4, 0xffffff, 0.55);
           this.hitZone = this.add.rectangle(0, 18, width * 0.18, hitH, 0x22c55e, 0.92);
