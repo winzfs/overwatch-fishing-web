@@ -1797,25 +1797,14 @@ export default function HarborPage() {
         />
 
         {/* Top HUD bar */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
-          <div className="pixel-hud-bar pointer-events-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:gap-3 sm:text-[10px]">
-            <Link href="/" className="text-cyan-100 hover:text-yellow-200">
-              ← HOME
-            </Link>
-            <span className="hidden text-slate-400 sm:inline">|</span>
-            <span className="text-yellow-200">DAY {today}</span>
-            <span className="hidden text-slate-400 sm:inline">|</span>
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-1 p-2 sm:p-3">
+          <div className="pixel-hud-bar pointer-events-auto flex items-center gap-x-2 text-[8px] sm:gap-3 sm:text-[10px]">
+            <Link href="/" className="text-cyan-100 hover:text-yellow-200">← HOME</Link>
             <span className="text-amber-200">{save.gold.toLocaleString()}G</span>
-            <span className="hidden text-slate-400 sm:inline">|</span>
-            <span className="text-cyan-200">FUEL {fuelLimit(save)}</span>
-            <span className="hidden text-slate-400 sm:inline">|</span>
-            <span className="text-fuchsia-200">PORT</span>
+            <span className="text-cyan-200">⛽{fuelLimit(save)}</span>
           </div>
-          <div className="pixel-hud-bar pointer-events-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:gap-3 sm:text-[10px]">
-            <span className="text-rose-200">HP 100/100</span>
-            <span className="hidden text-slate-400 sm:inline">|</span>
+          <div className="pixel-hud-bar pointer-events-auto flex items-center gap-x-2 text-[8px] sm:gap-3 sm:text-[10px]">
             <span className="text-emerald-200">Lv.{level}</span>
-            <span className="hidden text-slate-400 sm:inline">|</span>
             <span className="text-cyan-100">EXP {save.exp}/{nextExp}</span>
           </div>
         </div>
@@ -1874,7 +1863,7 @@ export default function HarborPage() {
           className="pixel-btn absolute bottom-[140px] right-3 z-30 max-w-[55vw] truncate disabled:opacity-50 sm:bottom-10 sm:right-44"
           style={{ minWidth: 100 }}
         >
-          {nearestSpot ? `E · ${nearestSpot.title}` : "EXPLORE"}
+          {nearestSpot ? `⚡ ${nearestSpot.title}` : "탐험하기"}
         </button>
       </section>
 

@@ -721,6 +721,7 @@ function OceanGame() {
         }
 
         drawMinimap() {
+          if (!this.SX || !this.minimap) return;
           const hs = 1 / this.CAM_ZOOM;
           const w = (this.isMobile ? 90 : 132) * hs, h = (this.isMobile ? 68 : 100) * hs;
           const x = this.SX - w - 12 * hs, y = 58 * hs;
