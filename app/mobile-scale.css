@@ -31,18 +31,6 @@
     padding: 15px 20px !important;
   }
 
-  canvas:not(.sea-bloom):not(.pixel-mini-map) {
-    height: 100dvh !important;
-    max-height: none !important;
-    max-width: none !important;
-    min-height: 100dvh !important;
-    min-width: 100vw !important;
-    object-fit: cover !important;
-    transform: scale(1.38) !important;
-    transform-origin: center center !important;
-    width: 100vw !important;
-  }
-
   .sea-bloom {
     height: 100dvh !important;
     object-fit: cover !important;

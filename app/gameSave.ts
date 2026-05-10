@@ -446,12 +446,14 @@ export function getNextLevelExp(level: number) {
 
 export function getRegionRequiredLevel(regionId: string) {
   const table: Record<string, number> = {
-    busan: 1,
-    incheon: 3,
-    jeju: 6,
-    dokdo: 10,
-    deepsea: 15,
-    antarctic: 20,
+    ilios: 1,
+    hanamura: 5,
+    route66: 10,
+    busan: 15,
+    numbani: 20,
+    antarctica: 25,
+    horizon: 30,
+    null_sector: 35,
   };
 
   return table[regionId] ?? 1;
