@@ -12,6 +12,8 @@ import {
   getDailySeaEvent,
   getPlayerLevel,
 } from "../../app/gameSave";
+import { AudioSystem } from "../systems/AudioSystem";
+import type { FishDiscoveredDetail } from "../../components/ocean/DiscoveryOverlay";
 
 type BattlePhase = "idle" | "bite" | "pull" | "reel" | "result";
 
@@ -99,6 +101,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     hitZone: any;
     pointer: any;
     tensionFill: any;
+
+    audio = new AudioSystem();
 
     saveData: SaveData = defaultSave();
     dailyEvent = getDailySeaEvent(regionId);
@@ -207,8 +211,11 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       window.addEventListener("ocean-return", this.returnToHarbor as EventListener);
 
       this.initMultiplayer();
-      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanupMultiplayer());
-      this.events.once(Phaser.Scenes.Events.DESTROY, () => this.cleanupMultiplayer());
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.cleanupMultiplayer(); this.audio.destroy(); });
+      this.events.once(Phaser.Scenes.Events.DESTROY, () => { this.cleanupMultiplayer(); this.audio.destroy(); });
+
+      this.audio.init();
+      this.audio.startOceanAmbient();
     }
 
     drawWorld() {
@@ -650,6 +657,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     onMove = (event: Event) => {
       const custom = event as CustomEvent<{ x: number; y: number }>;
       this.move = custom.detail;
+      this.audio.resume();
     };
 
     onFish = () => {
@@ -671,6 +679,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
     startFishingBattle() {
       if (this.isFishing || this.isResolving) return;
+      this.audio.resume();
+      this.audio.playCast();
       this.isFishing = true;
       this.phase = "bite";
       this.tension = 50;
@@ -695,6 +705,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (["legend", "mythic", "transcend"].includes(this.selectedFish.grade)) {
         this.cameras.main.shake(260, 0.012);
         this.showEvent(`${grade.emoji} 희귀한 기척이 느껴진다!`, grade.color);
+        this.audio.playRareAlert();
       }
       this.fishNameText.setText(`${grade.emoji} ${grade.name} 입질!`).setColor(grade.color);
       this.battleText.setText("");
@@ -746,7 +757,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const perfectRange = Math.max(12, this.hitZone.width * 0.18);
       const perfect = Math.abs(center - this.hitZone.x) <= perfectRange;
       const success = center >= left && center <= right;
-      if (!success) return this.finishCatch(false, "miss");
+      if (!success) { this.audio.playMiss(); return this.finishCatch(false, "miss"); }
+      this.audio.playBite();
 
       this.battleQuality = perfect ? "perfect" : "good";
       this.phase = "pull";
@@ -823,6 +835,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const input = this.getCurrentInputDirection();
       if (input === this.requiredDirection) {
         this.tension -= 14;
+        this.audio.playPullSuccess();
 
         if (this.pullRound < this.maxPullRounds) {
           this.pullRound += 1;
@@ -840,6 +853,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
           this.tension -= 12;
         }
       } else {
+        this.audio.playPullFail();
         const penalty =
           this.selectedFish.grade === "mythic" || this.selectedFish.grade === "transcend" ? 32 :
           this.selectedFish.grade === "legend" ? 28 : 24;
@@ -886,23 +900,51 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
           sizeRank: this.fishSize.sizeRank,
         };
         if (bagWeight(this.saveData) + item.kg > cargoLimit(this.saveData)) {
+          this.audio.playMiss();
           this.battleText.setColor("#fca5a5").setText("MISS\n🎒 가방이 부족해서 놓쳤습니다!\n항구로 돌아가 적재량을 비우세요.");
         } else {
           this.saveData.bag = [...(this.saveData.bag || []), item];
           this.saveData.exp += item.exp;
           this.saveData.caught += 1;
+          const isNew = (this.saveData.collection[item.fishId] || 0) === 0;
           this.saveData.collection[item.fishId] = (this.saveData.collection[item.fishId] || 0) + 1;
           if (!this.saveData.records) this.saveData.records = {};
           const old = this.saveData.records[item.fishId];
           const isRecord = !old || item.cm > old.cm;
           if (isRecord) this.saveData.records[item.fishId] = { cm: item.cm, kg: item.kg };
           saveGame(this.saveData);
+
+          const isEpicCatch = ["legend", "mythic", "transcend"].includes(this.selectedFish.grade);
+          if (isEpicCatch) {
+            this.audio.playCatchRare();
+          } else {
+            this.audio.playCatchSuccess();
+          }
+
           this.battleText.setColor(quality === "perfect" ? "#fde047" : "#86efac").setText(
             `${quality === "perfect" ? "PERFECT" : "SUCCESS"}\n${grade.emoji} ${item.name}\n${item.sizeRank} · ${item.cm}cm · ${item.kg}kg\n🎒 가방에 보관됨${isRecord ? "\n🏆 신기록!" : ""}`
           );
           if (item.sizeRank === "괴물급") {
             this.cameras.main.shake(320, 0.015);
             this.showEvent("🐋 괴물급 사이즈!", "#fde047");
+          }
+
+          // Dispatch discovery overlay for epic+ or new finds
+          if (isEpicCatch || isNew || isRecord) {
+            const detail: FishDiscoveredDetail = {
+              fishName: item.name,
+              grade: this.selectedFish.grade,
+              gradeEmoji: grade.emoji,
+              gradeColor: grade.color,
+              gradeName: grade.name,
+              cm: item.cm,
+              kg: item.kg,
+              sizeRank: item.sizeRank,
+              isNew,
+              isRecord,
+              quality: quality === "perfect" ? "perfect" : "good",
+            };
+            window.dispatchEvent(new CustomEvent("fish-discovered", { detail }));
           }
         }
         if (this.targetFish) {
@@ -916,6 +958,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         this.canFish = false;
         this.refreshHud();
       } else {
+        this.audio.playMiss();
         if (this.targetFish) {
           this.targetFish.destroy();
           this.fishes = this.fishes.filter((f) => f !== this.targetFish);

@@ -16,6 +16,7 @@ import {
   itemSellValue,
 } from "../gameSave";
 import { createOceanScene } from "../../engine/scenes/OceanScene";
+import { DiscoveryOverlay, type DiscoveryData, type FishDiscoveredDetail } from "../../components/ocean/DiscoveryOverlay";
 
 
 function BagOverlay({
@@ -155,6 +156,7 @@ function OceanGame() {
   const [stick, setStick] = useState({ x: 0, y: 0 });
   const [bagOpen, setBagOpen] = useState(false);
   const [bagRefreshKey, setBagRefreshKey] = useState(0);
+  const [discovery, setDiscovery] = useState<DiscoveryData | null>(null);
   const searchParams = useSearchParams();
   const regionId = searchParams.get("region") || "busan";
 
@@ -210,7 +212,16 @@ function OceanGame() {
 
     startGame();
 
-    return () => { if (game) game.destroy(true); };
+    function onFishDiscovered(e: Event) {
+      const detail = (e as CustomEvent<FishDiscoveredDetail>).detail;
+      setDiscovery(detail);
+    }
+    window.addEventListener("fish-discovered", onFishDiscovered);
+
+    return () => {
+      if (game) game.destroy(true);
+      window.removeEventListener("fish-discovered", onFishDiscovered);
+    };
   }, [regionId]);
 
   function move(x: number, y: number) {
@@ -326,6 +337,13 @@ function OceanGame() {
             setBagOpen(false);
             setBagRefreshKey(Date.now());
           }}
+        />
+      )}
+
+      {discovery && (
+        <DiscoveryOverlay
+          data={discovery}
+          onDismiss={() => setDiscovery(null)}
         />
       )}
     </main>
