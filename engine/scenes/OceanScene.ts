@@ -13,6 +13,8 @@ import {
   getPlayerLevel,
 } from "../../app/gameSave";
 import { AudioSystem } from "../systems/AudioSystem";
+import { TimeSystem } from "../systems/TimeSystem";
+import { PERIOD_META, formatGameTime } from "../../lib/time/gameTime";
 import type { FishDiscoveredDetail } from "../../components/ocean/DiscoveryOverlay";
 
 type BattlePhase = "idle" | "bite" | "pull" | "reel" | "result";
@@ -103,6 +105,9 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     tensionFill: any;
 
     audio = new AudioSystem();
+    timeSystem = new TimeSystem();
+    skyOverlay: any = null;
+    lastPeriod = "";
 
     saveData: SaveData = defaultSave();
     dailyEvent = getDailySeaEvent(regionId);
@@ -216,6 +221,14 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
       this.audio.init();
       this.audio.startOceanAmbient();
+
+      // Screen-space time-of-day overlay (below HUD, above world)
+      this.skyOverlay = this.add.rectangle(
+        this.scale.width / 2, this.scale.height / 2,
+        this.scale.width, this.scale.height,
+        0x000000, 0
+      ).setScrollFactor(0).setDepth(90);
+      this.applyTimePeriod();
     }
 
     drawWorld() {
@@ -434,6 +447,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     spawnFishField() {
       const radar = this.saveData.upgrades.radar || 0;
       const bait = this.saveData.prep?.bait || "basic";
+      const timeInfo = this.timeSystem.current;
       const baseTextures = ["fish_common", "fish_common", "fish_common", "fish_rare", "fish_epic"];
       const rareTextures = ["fish_rare", "fish_epic", "fish_legend"];
       const deepTextures = ["fish_epic", "fish_legend", "fish_mythic", "fish_transcend"];
@@ -441,6 +455,15 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (radar >= 2 || bait === "rare") rareTextures.push("fish_legend");
       if (radar >= 4 || bait === "heavy") deepTextures.push("fish_mythic");
       if (this.dailyEvent.rareBonus >= 2) deepTextures.push("fish_transcend");
+      // Magic Hour: extra rare/legendary entries in pools
+      if (timeInfo.isMagicHour) {
+        rareTextures.push("fish_legend", "fish_epic");
+        deepTextures.push("fish_legend", "fish_mythic");
+      }
+      // Late night: nocturnal bonus (mythic more common)
+      if (timeInfo.period === "latenight") {
+        deepTextures.push("fish_mythic", "fish_transcend");
+      }
 
       const fishCount = this.dailyEvent.id === "school" ? 58 : 46;
 
@@ -629,10 +652,12 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const maxDist = Math.hypot(this.WORLD_WIDTH, this.WORLD_HEIGHT);
       const ratio = dist / maxDist;
       const zone = ratio < 0.3 ? "🌊연안" : ratio < 0.6 ? "🌀중간" : "🌑심해";
+      const timeInfo = this.timeSystem.current;
+      const timeStr = `${timeInfo.emoji} ${formatGameTime(timeInfo)}${timeInfo.isMagicHour ? " ✦" : ""}`;
       this.hudText.setText(
         `🎒 ${weight.toFixed(1)} / ${limit}kg   ⛽ ${Math.max(0, Math.floor(this.fuel))}/${fuelLimit(this.saveData)}\n` +
         `💰 ${this.saveData.gold.toLocaleString()}G   Lv.${getPlayerLevel(this.saveData)}   🐟 ${this.saveData.caught}\n` +
-        `${zone}   ⚓ ${dist}m   ${this.dailyEvent.emoji} ${this.dailyEvent.name}`
+        `${zone}   ⚓ ${dist}m   ${timeStr}`
       );
     }
 
@@ -880,6 +905,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const grade = gradeInfo[this.selectedFish.grade];
       if (success) {
         const eventMult = this.dailyEvent.goldMultiplier;
+        const timeMult = this.timeSystem.current.spawnMultiplier;
         const item: BagItem = {
           uid: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           fishId: this.selectedFish.id,
@@ -891,9 +917,10 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
             this.selectedFish.price *
             this.fishSize.multiplier *
             eventMult *
+            timeMult *
             (quality === "perfect" ? 1.25 : 1)
           ),
-          exp: Math.floor(this.selectedFish.exp * this.dailyEvent.expMultiplier),
+          exp: Math.floor(this.selectedFish.exp * this.dailyEvent.expMultiplier * timeMult),
           freshness: 100,
           caughtAt: Date.now(),
           region: regionId,
@@ -1003,8 +1030,30 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (Phaser.Input.Keyboard.JustDown(this.keys.fish) || Phaser.Input.Keyboard.JustDown(this.keys.fish2)) this.onFish();
     }
 
+    tickGameTime() {
+      const { info, periodChanged } = this.timeSystem.tick();
+      if (periodChanged || !this.lastPeriod) {
+        this.applyTimePeriod();
+        this.audio.setTimePeriod(info.period);
+        if (this.lastPeriod) {
+          const label = info.isMagicHour ? `${info.emoji} ${info.label} — Magic Hour! 희귀 어종 출현 증가!` : `${info.emoji} ${info.label}이 되었습니다.`;
+          this.showEvent(label, info.isMagicHour ? "#fde047" : "#bae6fd");
+        }
+        this.lastPeriod = info.period;
+      }
+    }
+
+    applyTimePeriod() {
+      const info = this.timeSystem.current;
+      const meta = PERIOD_META[info.period];
+      if (this.skyOverlay) {
+        this.skyOverlay.setFillStyle(meta.skyColor, meta.overlayAlpha);
+      }
+    }
+
     update(_time: number, delta: number) {
       this.animTimer += delta;
+      this.tickGameTime();
       this.handleKeyboardInput();
       this.drawHudBox();
       this.drawMinimap();
