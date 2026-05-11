@@ -1,0 +1,70 @@
+html, body {
+  overscroll-behavior-y: auto !important;
+}
+
+body {
+  touch-action: pan-y;
+}
+
+@media (max-width: 768px) {
+  canvas {
+    touch-action: auto !important;
+  }
+
+  [data-phaser-root],
+  [data-phaser-root] canvas,
+  .sea-bloom {
+    width: 100vw !important;
+    height: 100svh !important;
+    min-height: 100svh !important;
+    overflow: hidden !important;
+  }
+
+  .pixel-hud-bar {
+    max-width: calc(100vw - 12px) !important;
+    font-size: 9px !important;
+    line-height: 1.45 !important;
+    padding: 7px 8px !important;
+    word-break: keep-all;
+  }
+
+  .pixel-btn {
+    font-size: 10px !important;
+    padding: 10px 12px !important;
+    min-height: 42px;
+  }
+
+  .pixel-panel,
+  .pixel-panel-deep,
+  .pixel-panel-amber,
+  .pixel-modal-shell {
+    padding: 12px !important;
+  }
+
+  .pixel-text {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+
+  .pixel-text-sm,
+  .pixel-panel p,
+  .pixel-panel span,
+  .pixel-modal-shell p,
+  .pixel-modal-shell span {
+    font-size: 10px !important;
+    line-height: 1.6 !important;
+  }
+
+  .pixel-mini-map {
+    display: none !important;
+  }
+
+  .pixel-vignette::after {
+    box-shadow: inset 0 0 70px rgba(0,0,0,0.42) !important;
+  }
+
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y !important;
+  }
+}
