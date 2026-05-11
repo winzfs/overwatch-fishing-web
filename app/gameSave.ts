@@ -435,33 +435,12 @@ export function itemSellValue(item: BagItem, save: SaveData) {
   return Math.floor(item.baseValue * (fresh / 100) * (1 + valueBonus));
 }
 
-export function getPlayerLevel(save: SaveData) {
-  const exp = Math.max(0, save.exp || 0);
-  return Math.floor(Math.sqrt(exp / 120)) + 1;
-}
-
-export function getNextLevelExp(level: number) {
-  return Math.pow(Math.max(1, level), 2) * 120;
-}
-
-export function getRegionRequiredLevel(regionId: string) {
-  const table: Record<string, number> = {
-    ilios: 1,
-    hanamura: 5,
-    route66: 10,
-    busan: 15,
-    numbani: 20,
-    antarctica: 25,
-    horizon: 30,
-    null_sector: 35,
-  };
-
-  return table[regionId] ?? 1;
-}
-
-export function isRegionUnlocked(regionId: string, save: SaveData) {
-  return getPlayerLevel(save) >= getRegionRequiredLevel(regionId);
-}
+export {
+  getPlayerLevel,
+  getNextLevelExp,
+  getRegionRequiredLevel,
+  isRegionUnlocked,
+} from "../lib/progression";
 
 export const upgradeList = [
   { key: "cargo", emoji: "🎒", name: "적재함", desc: "가방 최대 무게 증가", base: 2600, max: 8 },
@@ -476,39 +455,8 @@ export function upgradePrice(base: number, level: number) {
   return Math.floor(base * Math.pow(1.82, level));
 }
 
-export type DailySeaEvent = {
-  id: string;
-  name: string;
-  desc: string;
-  emoji: string;
-  goldMultiplier: number;
-  expMultiplier: number;
-  rareBonus: number;
-};
-
-export const DAILY_EVENTS: DailySeaEvent[] = [
-  { id: "calm", name: "잔잔한 바다", desc: "안정적인 출항. 기본 보상.", emoji: "🌤️", goldMultiplier: 1, expMultiplier: 1, rareBonus: 0 },
-  { id: "gold_tide", name: "황금 물결", desc: "판매 가치가 오르는 날.", emoji: "🌅", goldMultiplier: 1.25, expMultiplier: 1, rareBonus: 0 },
-  { id: "school", name: "물고기 떼", desc: "개체 수와 희귀 실루엣 증가.", emoji: "🐟", goldMultiplier: 1, expMultiplier: 1.1, rareBonus: 1 },
-  { id: "storm", name: "폭풍 전야", desc: "위험하지만 경험치 증가.", emoji: "⛈️", goldMultiplier: 1, expMultiplier: 1.35, rareBonus: 1 },
-  { id: "legend_scent", name: "전설의 기척", desc: "전설 이상 실루엣 증가.", emoji: "✨", goldMultiplier: 1.15, expMultiplier: 1.15, rareBonus: 2 },
-];
-
-function hashString(input: string) {
-  let hash = 0;
-
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash << 5) - hash + input.charCodeAt(i);
-    hash |= 0;
-  }
-
-  return Math.abs(hash);
-}
-
-export function getDailySeaEvent(regionId: string): DailySeaEvent {
-  const key = `${new Date().toISOString().slice(0, 10)}-${regionId}`;
-  return DAILY_EVENTS[hashString(key) % DAILY_EVENTS.length];
-}
+export type { DailySeaEvent } from "../lib/events/daily";
+export { DAILY_EVENTS, getDailySeaEvent } from "../lib/events/daily";
 
 export type SaveMutationResult = {
   ok: boolean;
