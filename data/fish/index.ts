@@ -7,6 +7,12 @@ import { numbaniFish } from "./numbani";
 import { antarcticaFish } from "./antarctica";
 import { horizonFish } from "./horizon";
 import { nullSectorFish } from "./null_sector";
+import { sunsetReefFish } from "./sunset_reef";
+import { stormSeaFish } from "./storm_sea";
+import { volcanicRiftFish } from "./volcanic_rift";
+import { redTideFish } from "./red_tide";
+import { ghostRouteFish } from "./ghost_route";
+import { timeRiftFish } from "./time_rift";
 import { gradeInfo } from "./grades";
 
 export { gradeInfo } from "./grades";
@@ -20,6 +26,12 @@ export const fishes: Fish[] = [
   ...antarcticaFish,
   ...horizonFish,
   ...nullSectorFish,
+  ...sunsetReefFish,
+  ...stormSeaFish,
+  ...volcanicRiftFish,
+  ...redTideFish,
+  ...ghostRouteFish,
+  ...timeRiftFish,
 ];
 
 export function pickFish(regionId: string, rng: () => number = Math.random): Fish {
