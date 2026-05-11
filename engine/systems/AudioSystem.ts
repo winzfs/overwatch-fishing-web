@@ -15,6 +15,10 @@ export class AudioSystem {
   private masterGain: GainNode | null = null;
   private ambientNodes: OscillatorNode[] = [];
   private ambientGain: GainNode | null = null;
+  private ambientSwell1: OscillatorNode | null = null;
+  private ambientSwell2: OscillatorNode | null = null;
+  private ambientShimmer: OscillatorNode | null = null;
+  private ambientShimmerGain: GainNode | null = null;
   private _sfxVol = 0.55;
   private _bgmVol = 0.3;
   private _enabled = true;
@@ -179,7 +183,31 @@ export class AudioSystem {
     shimmerGain.connect(this.ambientGain);
     shimmer.start();
 
+    this.ambientSwell1 = swell1;
+    this.ambientSwell2 = swell2;
+    this.ambientShimmer = shimmer;
+    this.ambientShimmerGain = shimmerGain;
     this.ambientNodes = [swell1, swell2, lfo, shimmer];
+  }
+
+  setTimePeriod(period: string) {
+    if (!this.ctx || !this.ambientSwell1 || !this.ambientSwell2 || !this.ambientShimmer) return;
+    const t = this.ctx.currentTime + 4; // 4s crossfade
+    const settings: Record<string, { swell1: number; swell2: number; shimmerFreq: number; shimmerGain: number }> = {
+      dawn:      { swell1: 45,  swell2: 68,  shimmerFreq: 1100, shimmerGain: 0.008 },
+      morning:   { swell1: 55,  swell2: 82,  shimmerFreq: 1800, shimmerGain: 0.012 },
+      noon:      { swell1: 65,  swell2: 96,  shimmerFreq: 2300, shimmerGain: 0.016 },
+      dusk:      { swell1: 50,  swell2: 74,  shimmerFreq: 900,  shimmerGain: 0.009 },
+      night:     { swell1: 42,  swell2: 62,  shimmerFreq: 500,  shimmerGain: 0.005 },
+      latenight: { swell1: 36,  swell2: 52,  shimmerFreq: 280,  shimmerGain: 0.002 },
+    };
+    const s = settings[period] ?? settings.morning;
+    this.ambientSwell1.frequency.linearRampToValueAtTime(s.swell1, t);
+    this.ambientSwell2.frequency.linearRampToValueAtTime(s.swell2, t);
+    this.ambientShimmer.frequency.linearRampToValueAtTime(s.shimmerFreq, t);
+    if (this.ambientShimmerGain) {
+      this.ambientShimmerGain.gain.linearRampToValueAtTime(s.shimmerGain, t);
+    }
   }
 
   stopOceanAmbient() {
