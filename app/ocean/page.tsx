@@ -14,7 +14,7 @@ import {
   currentFreshness,
   itemSellValue,
 } from "../gameSave";
-import { createOceanScene } from "../../engine/scenes/OceanScene";
+import { createCleanOceanScene } from "../../engine/scenes/CleanOceanScene";
 import { DiscoveryOverlay, type DiscoveryData, type FishDiscoveredDetail } from "../../components/ocean/DiscoveryOverlay";
 
 const PIXEL_FONT = "'Press Start 2P', 'Courier New', monospace";
@@ -232,7 +232,7 @@ function OceanGame() {
 
     async function startGame() {
       const Phaser = (await import("phaser")).default;
-      const OceanSceneClass = createOceanScene(Phaser, {
+      const OceanSceneClass = createCleanOceanScene(Phaser, {
         regionId,
         region: currentRegion,
         supabase,
