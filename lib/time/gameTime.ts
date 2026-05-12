@@ -15,16 +15,20 @@ export interface GameTimeInfo {
 export const GAME_DAY_MS = 24 * 60 * 1000;
 
 // Sky color and darkness per period
+// NOTE: OceanScene renders the time tint as a Phaser screen-space overlay.
+// On mobile DPR/zoom combinations this overlay can appear as a large opaque
+// rectangle that blocks gameplay, so the visual alpha is disabled here while
+// keeping time labels, magic-hour bonuses, and spawn multipliers intact.
 export const PERIOD_META: Record<
   TimePeriod,
   { label: string; emoji: string; isMagicHour: boolean; spawnMultiplier: number; skyColor: number; overlayAlpha: number }
 > = {
-  dawn:      { label: "새벽", emoji: "🌅", isMagicHour: true,  spawnMultiplier: 1.3, skyColor: 0xFF8C42, overlayAlpha: 0.22 },
-  morning:   { label: "아침", emoji: "☀️", isMagicHour: false, spawnMultiplier: 1.0, skyColor: 0x87CEEB, overlayAlpha: 0.0  },
-  noon:      { label: "정오", emoji: "🌞", isMagicHour: false, spawnMultiplier: 0.85,skyColor: 0x1E90FF, overlayAlpha: 0.0  },
-  dusk:      { label: "황혼", emoji: "🌇", isMagicHour: true,  spawnMultiplier: 1.3, skyColor: 0xFF4500, overlayAlpha: 0.18 },
-  night:     { label: "밤",   emoji: "🌙", isMagicHour: false, spawnMultiplier: 1.1, skyColor: 0x1a1a4e, overlayAlpha: 0.30 },
-  latenight: { label: "심야", emoji: "⭐", isMagicHour: false, spawnMultiplier: 1.2, skyColor: 0x05051a, overlayAlpha: 0.44 },
+  dawn:      { label: "새벽", emoji: "🌅", isMagicHour: true,  spawnMultiplier: 1.3, skyColor: 0xFF8C42, overlayAlpha: 0.0 },
+  morning:   { label: "아침", emoji: "☀️", isMagicHour: false, spawnMultiplier: 1.0, skyColor: 0x87CEEB, overlayAlpha: 0.0 },
+  noon:      { label: "정오", emoji: "🌞", isMagicHour: false, spawnMultiplier: 0.85,skyColor: 0x1E90FF, overlayAlpha: 0.0 },
+  dusk:      { label: "황혼", emoji: "🌇", isMagicHour: true,  spawnMultiplier: 1.3, skyColor: 0xFF4500, overlayAlpha: 0.0 },
+  night:     { label: "밤",   emoji: "🌙", isMagicHour: false, spawnMultiplier: 1.1, skyColor: 0x1a1a4e, overlayAlpha: 0.0 },
+  latenight: { label: "심야", emoji: "⭐", isMagicHour: false, spawnMultiplier: 1.2, skyColor: 0x05051a, overlayAlpha: 0.0 },
 };
 
 // Game hour ranges: total 24h, stored as [start, end)
