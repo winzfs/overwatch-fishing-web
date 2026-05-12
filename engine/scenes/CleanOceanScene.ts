@@ -1,4 +1,6 @@
 import { createOceanScene, type OceanSceneConfig } from "./OceanScene";
+import { bagWeight, cargoLimit, fuelLimit, getPlayerLevel } from "../../app/gameSave";
+import { formatGameTime } from "../../lib/time/gameTime";
 
 /**
  * Thin wrapper over the existing OceanScene.
@@ -57,23 +59,23 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     refreshHud() {
       const save = this.saveData;
       const timeInfo = this.timeSystem?.current;
-      const zone = this.getCurrentZone ? this.getCurrentZone() : this.currentRegion?.name || "해역";
+      const zone = this.getCurrentZone ? this.getCurrentZone() : cfg.region?.name || "해역";
       const dist = this.boat
         ? Math.round(Phaser.Math.Distance.Between(this.boat.x, this.boat.y, this.PORT_X, this.PORT_Y))
         : 0;
 
       window.dispatchEvent(new CustomEvent("hud-update", {
         detail: {
-          weight: this.bagWeight ? this.bagWeight(save) : 0,
-          limit: this.cargoLimit ? this.cargoLimit(save) : 0,
+          weight: bagWeight(save),
+          limit: cargoLimit(save),
           fuel: Math.max(0, Math.round(this.fuel || 0)),
-          fuelMax: this.fuelLimit ? this.fuelLimit(save) : 100,
+          fuelMax: fuelLimit(save),
           gold: save?.gold || 0,
-          level: this.getPlayerLevel ? this.getPlayerLevel(save) : 1,
+          level: getPlayerLevel(save),
           caught: save?.stats?.totalCaught || 0,
           zone,
           dist,
-          timeStr: timeInfo ? `${timeInfo.emoji || ""} ${this.formatGameTime ? this.formatGameTime(timeInfo) : "00:00"}` : "00:00",
+          timeStr: timeInfo ? `${timeInfo.emoji || ""} ${formatGameTime(timeInfo)}` : "00:00",
           boatX: this.boat?.x || this.PORT_X,
           boatY: this.boat?.y || this.PORT_Y,
           worldWidth: this.WORLD_WIDTH,
