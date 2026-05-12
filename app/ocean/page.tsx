@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { gradeInfo, regions } from "../../data/fishingData";
@@ -158,6 +158,7 @@ function OceanGame() {
   const [bagRefreshKey, setBagRefreshKey] = useState(0);
   const [discovery, setDiscovery] = useState<DiscoveryData | null>(null);
   const [isLandscape, setIsLandscape] = useState(false);
+  const dismissDiscovery = useCallback(() => setDiscovery(null), []);
 
   useEffect(() => {
     function updateOrientation() {
@@ -357,7 +358,7 @@ function OceanGame() {
       {discovery && (
         <DiscoveryOverlay
           data={discovery}
-          onDismiss={() => setDiscovery(null)}
+          onDismiss={dismissDiscovery}
         />
       )}
     </main>
