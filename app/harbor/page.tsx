@@ -1021,12 +1021,15 @@ function drawInteractPrompt(
   }
 }
 
-function drawVignette(ctx: CanvasRenderingContext2D) {
-  const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 280, VIEW_W / 2, VIEW_H / 2, 720);
+function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const cx = w / 2, cy = h / 2;
+  const inner = Math.min(w, h) * 0.32;
+  const outer = Math.max(w, h) * 0.78;
+  const g = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
   g.addColorStop(0, "rgba(0,0,0,0)");
   g.addColorStop(1, "rgba(0,0,0,0.55)");
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillRect(0, 0, w, h);
 }
 
 function drawMinimap(
@@ -1089,6 +1092,7 @@ function HarborScene({
     vy: 0,
     facing: "right" as "left" | "right",
   });
+  const camRef = useRef({ x: 640, y: 620 });
   const inputRef = useRef({ left: false, right: false, up: false, down: false });
   const stickRef = useRef({ x: 0, y: 0 });
   const shakeRef = useRef(0);
@@ -1144,6 +1148,17 @@ function HarborScene({
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("harbor-stick", onStick as EventListener);
 
+    function syncCanvasSize() {
+      const el = canvasRef.current;
+      if (!el) return;
+      const w = window.innerWidth, h = window.innerHeight;
+      if (el.width !== w) el.width = w;
+      if (el.height !== h) el.height = h;
+    }
+    syncCanvasSize();
+    window.addEventListener("resize", syncCanvasSize);
+    window.addEventListener("orientationchange", syncCanvasSize);
+
     const loop = (ts: number) => {
       raf = requestAnimationFrame(loop);
       const ctx = canvasRef.current?.getContext("2d");
@@ -1176,6 +1191,15 @@ function HarborScene({
       if (player.vx < -0.2) player.facing = "left";
       else if (player.vx > 0.2) player.facing = "right";
 
+      // camera follow (lerp toward player, clamped to world bounds)
+      const cam = camRef.current;
+      const cw = canvasRef.current?.width ?? VIEW_W;
+      const ch = canvasRef.current?.height ?? VIEW_H;
+      cam.x += (player.x - cam.x) * 0.1;
+      cam.y += (player.y - cam.y) * 0.1;
+      cam.x = cw >= VIEW_W ? VIEW_W / 2 : Math.max(cw / 2, Math.min(VIEW_W - cw / 2, cam.x));
+      cam.y = ch >= VIEW_H ? VIEW_H / 2 : Math.max(ch / 2, Math.min(VIEW_H - ch / 2, cam.y));
+
       // nearest spot
       let nearest: HarborSpot | null = null;
       let bestDist = Infinity;
@@ -1202,8 +1226,14 @@ function HarborScene({
 
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
-      ctx.translate(sx, sy);
+      // Fill background so areas outside world bounds don't show transparent
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, ch);
+      bgGrad.addColorStop(0, "#0a2540");
+      bgGrad.addColorStop(1, "#020617");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, cw, ch);
+      // Apply camera transform: world → screen
+      ctx.translate(Math.round(cw / 2 - cam.x + sx), Math.round(ch / 2 - cam.y + sy));
 
       drawSky(ctx);
       drawLand(ctx);
@@ -1267,8 +1297,9 @@ function HarborScene({
         }
       }
 
-      drawVignette(ctx);
       ctx.restore();
+      // Vignette drawn in screen-space (after camera transform removed)
+      drawVignette(ctx, cw, ch);
 
       // minimap
       const mctx = minimapRef.current?.getContext("2d");
@@ -1287,6 +1318,8 @@ function HarborScene({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("harbor-stick", onStick as EventListener);
+      window.removeEventListener("resize", syncCanvasSize);
+      window.removeEventListener("orientationchange", syncCanvasSize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1295,10 +1328,8 @@ function HarborScene({
     <>
       <canvas
         ref={canvasRef}
-        width={VIEW_W}
-        height={VIEW_H}
-        className="absolute inset-0 h-full w-full sea-bloom"
-        style={{ imageRendering: "pixelated", objectFit: "contain" }}
+        className="absolute inset-0 h-full w-full"
+        style={{ imageRendering: "pixelated" }}
       />
       <canvas
         ref={minimapRef}

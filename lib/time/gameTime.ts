@@ -23,8 +23,8 @@ export const PERIOD_META: Record<
   morning:   { label: "아침", emoji: "☀️", isMagicHour: false, spawnMultiplier: 1.0, skyColor: 0x87CEEB, overlayAlpha: 0.0  },
   noon:      { label: "정오", emoji: "🌞", isMagicHour: false, spawnMultiplier: 0.85,skyColor: 0x1E90FF, overlayAlpha: 0.0  },
   dusk:      { label: "황혼", emoji: "🌇", isMagicHour: true,  spawnMultiplier: 1.3, skyColor: 0xFF4500, overlayAlpha: 0.18 },
-  night:     { label: "밤",   emoji: "🌙", isMagicHour: false, spawnMultiplier: 1.1, skyColor: 0x1a1a4e, overlayAlpha: 0.48 },
-  latenight: { label: "심야", emoji: "⭐", isMagicHour: false, spawnMultiplier: 1.2, skyColor: 0x05051a, overlayAlpha: 0.68 },
+  night:     { label: "밤",   emoji: "🌙", isMagicHour: false, spawnMultiplier: 1.1, skyColor: 0x1a1a4e, overlayAlpha: 0.30 },
+  latenight: { label: "심야", emoji: "⭐", isMagicHour: false, spawnMultiplier: 1.2, skyColor: 0x05051a, overlayAlpha: 0.44 },
 };
 
 // Game hour ranges: total 24h, stored as [start, end)
