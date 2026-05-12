@@ -342,18 +342,10 @@ function OceanGame() {
   const dotTop = Math.max(6, Math.min(minimapH - 6, ((hudData?.boatY || 260) / worldH) * minimapH));
   const portLeft = Math.max(5, Math.min(minimapW - 5, ((hudData?.portX || 180) / worldW) * minimapW));
   const portTop = Math.max(5, Math.min(minimapH - 5, ((hudData?.portY || 180) / worldH) * minimapH));
-  const battleCanvasScale = battleActive && !isLandscape ? 0.84 : battleActive ? 0.9 : 1;
 
   return (
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
-      <div
-        ref={gameRef}
-        className="absolute inset-0 transition-transform duration-150 ease-out"
-        style={{
-          transform: `scale(${battleCanvasScale})`,
-          transformOrigin: "center center",
-        }}
-      />
+      <div ref={gameRef} className="absolute inset-0" />
 
       <section className="absolute left-2 top-2 z-[70] flex max-w-[calc(100vw-130px)] flex-col gap-1 text-cyan-50 sm:left-3 sm:top-3">
         <div
