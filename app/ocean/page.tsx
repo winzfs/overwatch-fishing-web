@@ -299,7 +299,7 @@ function OceanGame() {
         onPointerUp={releaseMove}
         onPointerCancel={releaseMove}
         onLostPointerCapture={releaseMove}
-        className="absolute bottom-3 left-3 z-50 h-28 w-28 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"
+        className="absolute bottom-4 left-3 z-50 h-28 w-28 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"
         style={{ touchAction: "none" }}
       >
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300/30 bg-cyan-400/10 sm:h-20 sm:w-20" />
@@ -312,7 +312,7 @@ function OceanGame() {
       <button
         type="button"
         onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); fish(); }}
-        className="absolute bottom-5 right-3 z-50 h-24 w-24 sm:bottom-9 sm:right-5 sm:h-28 sm:w-28"
+        className="absolute bottom-4 right-3 z-50 h-24 w-24 sm:bottom-9 sm:right-5 sm:h-28 sm:w-28"
         style={{
           backgroundImage: "url('/assets/ui/hook_button.png')",
           backgroundSize: "cover",

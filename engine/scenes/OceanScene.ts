@@ -197,7 +197,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.boat.setDepth(30);
       this.boatBobBase = this.boat.y;
 
-      this.cameras.main.startFollow(this.boat, true, 0.08, 0.08);
+      this.cameras.main.startFollow(this.boat, true, 1, 1);
       this.cameras.main.setRoundPixels(true);
 
       this.keys = this.input.keyboard?.addKeys({
@@ -224,8 +224,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
       // Screen-space time-of-day overlay (below HUD, above world)
       this.skyOverlay = this.add.rectangle(
-        this.scale.width / 2, this.scale.height / 2,
-        this.scale.width, this.scale.height,
+        this.SX / 2, this.SY / 2,
+        this.SX, this.SY,
         0x000000, 0
       ).setScrollFactor(0).setDepth(90);
       this.applyTimePeriod();
@@ -299,7 +299,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
     drawVignette() {
       if (!this.vignette) return;
-      const w = this.scale.width, h = this.scale.height;
+      const w = this.SX, h = this.SY;
       this.vignette.clear();
       const layers = 20;
       for (let i = 0; i < layers; i++) {
@@ -509,7 +509,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.hudBox = this.add.graphics().setScrollFactor(0).setDepth(99);
 
       this.hudText = this.add.text(Math.round(20 * hs), Math.round(58 * hs), "", {
-        fontSize: this.isMobile ? `${Math.round(12 * hs)}px` : "13px",
+        fontSize: this.isMobile ? `${Math.round(13 * hs)}px` : "13px",
         color: "#facc15",
         fontStyle: "bold",
         stroke: "#020617",
@@ -518,7 +518,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         lineSpacing: 6,
       }).setScrollFactor(0).setDepth(100);
 
-      this.hintText = this.add.text(sw / 2, sh - (this.isMobile ? 90 : 138) * hs, "", {
+      this.hintText = this.add.text(sw / 2, sh - (this.isMobile ? 150 : 138) * hs, "", {
         fontSize: this.isMobile ? `${Math.round(20 * hs)}px` : "16px",
         color: "#fde047",
         align: "center",
@@ -528,7 +528,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         fontFamily: '"Press Start 2P", "Courier New", monospace',
       }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 
-      this.eventText = this.add.text(sw / 2, (this.isMobile ? 90 : 130) * hs, "", {
+      this.eventText = this.add.text(sw / 2, sh / 2 - (this.isMobile ? 40 : 30) * hs, "", {
         fontSize: this.isMobile ? `${Math.round(15 * hs)}px` : "14px",
         color: "#fde047",
         align: "center",
@@ -551,7 +551,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (!this.hudBox) return;
       this.hudBox.clear();
       const hs = 1 / this.CAM_ZOOM;
-      const w = (this.isMobile ? 220 : 300) * hs, h = (this.isMobile ? 82 : 75) * hs;
+      const w = (this.isMobile ? 220 : 300) * hs, h = (this.isMobile ? 90 : 75) * hs;
       const x = 8 * hs, y = 50 * hs;
       this.hudBox.fillStyle(0x67e8f9, 1);
       this.hudBox.fillRect(x - 4, y - 4, w + 8, h + 8);
@@ -598,7 +598,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const hs = 1 / this.CAM_ZOOM;
       const width = this.SX, height = this.SY;
       this.panel = this.add.container(width / 2, height / 2).setScrollFactor(0).setVisible(false).setDepth(130);
-      const bg = this.add.rectangle(0, 0, width * 0.92, 480 * hs, 0x020617, 0.96);
+      const bg = this.add.rectangle(0, 0, width * 0.92, Math.min(480, this.SY * 0.88) * hs, 0x020617, 0.96);
       bg.setStrokeStyle(5, 0x22d3ee);
       this.battleTitle = this.add.text(0, -210 * hs, "🎣 낚시 전투!", { fontSize: `${Math.round(34 * hs)}px`, color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
       this.fishNameText = this.add.text(0, -168 * hs, "", { fontSize: `${Math.round(21 * hs)}px`, color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
@@ -664,8 +664,9 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     showEvent(message: string, color = "#fde047") {
       this.eventText.setText(message).setColor(color).setVisible(true).setAlpha(1);
       const hs = 1 / this.CAM_ZOOM;
-      this.eventText.y = (this.isMobile ? 90 : 118) * hs;
-      this.tweens.add({ targets: this.eventText, y: (this.isMobile ? 40 : 56) * hs, alpha: 0, duration: 1900, onComplete: () => this.eventText.setVisible(false) });
+      const sh = this.SY;
+      this.eventText.y = sh / 2 - (this.isMobile ? 40 : 30) * hs;
+      this.tweens.add({ targets: this.eventText, y: sh / 2 - (this.isMobile ? 120 : 100) * hs, alpha: 0, duration: 1900, onComplete: () => this.eventText.setVisible(false) });
     }
 
     makeFishSize(grade: string) {
