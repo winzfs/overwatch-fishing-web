@@ -157,6 +157,20 @@ function OceanGame() {
   const [bagOpen, setBagOpen] = useState(false);
   const [bagRefreshKey, setBagRefreshKey] = useState(0);
   const [discovery, setDiscovery] = useState<DiscoveryData | null>(null);
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  useEffect(() => {
+    function updateOrientation() {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    }
+    updateOrientation();
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
+  }, []);
   const searchParams = useSearchParams();
   const regionId = searchParams.get("region") || "busan";
 
@@ -299,12 +313,12 @@ function OceanGame() {
         onPointerUp={releaseMove}
         onPointerCancel={releaseMove}
         onLostPointerCapture={releaseMove}
-        className="absolute bottom-3 left-3 z-50 h-28 w-28 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"
+        className={`absolute z-50 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur ${isLandscape ? "bottom-3 left-2 h-20 w-20" : "bottom-4 left-3 h-28 w-28 sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"}`}
         style={{ touchAction: "none" }}
       >
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300/30 bg-cyan-400/10 sm:h-20 sm:w-20" />
+        <div className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300/30 bg-cyan-400/10 ${isLandscape ? "h-14 w-14" : "h-20 w-20"}`} />
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 rounded-full border-2 border-cyan-200 bg-cyan-400/85 shadow-xl shadow-cyan-400/40 sm:h-12 sm:w-12"
+          className={`pointer-events-none absolute left-1/2 top-1/2 rounded-full border-2 border-cyan-200 bg-cyan-400/85 shadow-xl shadow-cyan-400/40 ${isLandscape ? "h-10 w-10" : "h-12 w-12"}`}
           style={{ transform: `translate(calc(-50% + ${stick.x}px), calc(-50% + ${stick.y}px))` }}
         />
       </div>
@@ -312,7 +326,7 @@ function OceanGame() {
       <button
         type="button"
         onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); fish(); }}
-        className="absolute bottom-5 right-3 z-50 h-24 w-24 sm:bottom-9 sm:right-5 sm:h-28 sm:w-28"
+        className={`absolute z-50 ${isLandscape ? "bottom-3 right-2 h-20 w-20" : "bottom-4 right-3 h-24 w-24 sm:bottom-9 sm:right-5 sm:h-28 sm:w-28"}`}
         style={{
           backgroundImage: "url('/assets/ui/hook_button.png')",
           backgroundSize: "cover",
