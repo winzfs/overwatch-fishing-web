@@ -68,6 +68,44 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       }
     }
 
+    private isPortraitMobileViewport() {
+      const metrics = this.getViewportMetrics();
+      return metrics.isMobile && !metrics.isLandscape;
+    }
+
+    private nudgeBattlePanelIntoPortraitViewport() {
+      if (!this.isPortraitMobileViewport()) return;
+
+      // Move the native battle UI as one rigid group. This avoids recreating or
+      // resizing battle objects while keeping the timing bar, hit-zone and
+      // pointer geometry aligned with each other.
+      const hs = 1 / (this.CAM_ZOOM || 1);
+      const dx = -58 * hs;
+      const dy = -46 * hs;
+      const targets = [
+        this.panel,
+        this.battleTitle,
+        this.fishNameText,
+        this.battleGuide,
+        this.battleText,
+        this.directionArrow,
+        this.directionLabel,
+        this.promptPlusText,
+        this.promptHookButton,
+        this.timingBar,
+        this.hitZone,
+        this.pointer,
+        this.tensionFill,
+      ];
+
+      for (const target of targets) {
+        if (!target || target.getData?.("portraitNudged")) continue;
+        if (typeof target.x === "number") target.x += dx;
+        if (typeof target.y === "number") target.y += dy;
+        target.setData?.("portraitNudged", true);
+      }
+    }
+
     drawVignette() {
       if (this.vignette) this.vignette.clear();
     }
@@ -109,6 +147,11 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.minimapBoat = null;
       this.minimapPort = null;
       this.minimapWreck = null;
+    }
+
+    createBattlePanel() {
+      if (super.createBattlePanel) super.createBattlePanel();
+      this.nudgeBattlePanelIntoPortraitViewport();
     }
 
     onResize(...args: any[]) {
