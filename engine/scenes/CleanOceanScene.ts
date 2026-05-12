@@ -39,10 +39,10 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       // The native OceanScene battle UI scales many screen-space elements by
       // `hs = 1 / CAM_ZOOM`. A portrait zoom of 0.7 makes the battle panel too
       // large on tall phones, causing the right/bottom edges to clip. Keep the
-      // original landscape zoom, but use a slightly higher portrait zoom so the
-      // native panel, text, bars, and result area fit without recreating or
-      // mutating battle objects.
-      const zoom = isMobile ? (isLandscape ? 0.62 : 0.84) : 1.0;
+      // original landscape zoom, but use a higher portrait zoom so the native
+      // panel, text, bars, and result area fit without recreating or mutating
+      // battle objects.
+      const zoom = isMobile ? (isLandscape ? 0.62 : 0.92) : 1.0;
 
       return {
         width: scaleW,
