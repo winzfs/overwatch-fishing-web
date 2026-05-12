@@ -311,23 +311,23 @@ function OceanGame() {
     updateJoystick(e.clientX, e.clientY);
   }
 
-  const minimapW = isLandscape ? 86 : 78;
-  const minimapH = isLandscape ? 58 : 70;
+  const minimapW = isLandscape ? 96 : 94;
+  const minimapH = isLandscape ? 64 : 84;
   const worldW = hudData?.worldWidth || 3000;
   const worldH = hudData?.worldHeight || 2300;
-  const dotLeft = Math.max(5, Math.min(minimapW - 5, ((hudData?.boatX || 260) / worldW) * minimapW));
-  const dotTop = Math.max(5, Math.min(minimapH - 5, ((hudData?.boatY || 260) / worldH) * minimapH));
-  const portLeft = Math.max(4, Math.min(minimapW - 4, ((hudData?.portX || 180) / worldW) * minimapW));
-  const portTop = Math.max(4, Math.min(minimapH - 4, ((hudData?.portY || 180) / worldH) * minimapH));
+  const dotLeft = Math.max(6, Math.min(minimapW - 6, ((hudData?.boatX || 260) / worldW) * minimapW));
+  const dotTop = Math.max(6, Math.min(minimapH - 6, ((hudData?.boatY || 260) / worldH) * minimapH));
+  const portLeft = Math.max(5, Math.min(minimapW - 5, ((hudData?.portX || 180) / worldW) * minimapW));
+  const portTop = Math.max(5, Math.min(minimapH - 5, ((hudData?.portY || 180) / worldH) * minimapH));
 
   return (
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
       <div ref={gameRef} className="absolute inset-0" />
 
-      <section className="absolute left-2 top-2 z-50 flex max-w-[calc(100vw-112px)] flex-col gap-1 text-cyan-50 sm:left-3 sm:top-3">
+      <section className="absolute left-2 top-2 z-[70] flex max-w-[calc(100vw-130px)] flex-col gap-1 text-cyan-50 sm:left-3 sm:top-3">
         <div
           className="pointer-events-auto flex w-fit items-center gap-2 px-2 py-1"
-          style={{ ...compactPanelStyle(0.72), fontSize: "8px", lineHeight: 1.35 }}
+          style={{ ...compactPanelStyle(0.78), fontSize: "8px", lineHeight: 1.35 }}
         >
           <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">⚓ HARBOR</a>
           <button onClick={openBag} className="text-yellow-200">🎒 BAG</button>
@@ -338,7 +338,7 @@ function OceanGame() {
           <div className="grid w-fit gap-1">
             <div
               className="grid grid-cols-2 gap-x-2 gap-y-1 px-2 py-1"
-              style={{ ...compactPanelStyle(0.64), fontSize: "7px", lineHeight: 1.55 }}
+              style={{ ...compactPanelStyle(0.72), fontSize: "7px", lineHeight: 1.55 }}
             >
               <span>🎒 {hudData.weight.toFixed(1)}/{hudData.limit}kg</span>
               <span>⛽ {hudData.fuel}/{hudData.fuelMax}</span>
@@ -347,7 +347,7 @@ function OceanGame() {
             </div>
             <div
               className="w-fit px-2 py-1"
-              style={{ ...compactPanelStyle(0.58), fontSize: "6px", lineHeight: 1.5, color: "#e0f2fe" }}
+              style={{ ...compactPanelStyle(0.68), fontSize: "6px", lineHeight: 1.5, color: "#e0f2fe" }}
             >
               {hudData.zone} · ⚓{hudData.dist}m · {hudData.timeStr}
             </div>
@@ -356,24 +356,24 @@ function OceanGame() {
       </section>
 
       <section
-        className="pointer-events-none absolute right-2 top-2 z-50 overflow-hidden sm:right-3 sm:top-3"
+        className="pointer-events-none absolute right-2 top-2 z-[75] overflow-hidden sm:right-3 sm:top-3"
         style={{
-          ...compactPanelStyle(0.66),
+          ...compactPanelStyle(0.95),
           width: `${minimapW}px`,
           height: `${minimapH}px`,
-          padding: 3,
+          padding: 4,
         }}
       >
-        <div className="relative h-full w-full overflow-hidden bg-slate-950/90">
-          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(rgba(103,232,249,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(103,232,249,0.25) 1px, transparent 1px)", backgroundSize: "25% 33%" }} />
+        <div className="relative h-full w-full overflow-hidden bg-slate-950">
+          <div className="absolute inset-0 opacity-45" style={{ backgroundImage: "linear-gradient(rgba(103,232,249,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(103,232,249,0.25) 1px, transparent 1px)", backgroundSize: "25% 33%" }} />
           <div className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 bg-yellow-300" style={{ left: portLeft, top: portTop }} />
-          <div className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.9)]" style={{ left: dotLeft, top: dotTop }} />
+          <div className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 bg-cyan-300 shadow-[0_0_7px_rgba(103,232,249,0.95)]" style={{ left: dotLeft, top: dotTop }} />
         </div>
       </section>
 
-      <div className="pointer-events-none absolute right-3 top-[88px] z-50 hidden sm:block">
+      <div className="pointer-events-none absolute right-3 top-[102px] z-[70] hidden sm:block">
         <div
-          style={{ ...compactPanelStyle(0.62), padding: "3px 5px", fontSize: "8px", lineHeight: 1.35, color: "#e0f2fe" }}
+          style={{ ...compactPanelStyle(0.7), padding: "3px 5px", fontSize: "8px", lineHeight: 1.35, color: "#e0f2fe" }}
         >
           PC: WASD/ARROW · SPACE/ENTER · E
         </div>
