@@ -167,6 +167,7 @@ function OceanGame() {
   const [bagRefreshKey, setBagRefreshKey] = useState(0);
   const [discovery, setDiscovery] = useState<DiscoveryData | null>(null);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [battleActive, setBattleActive] = useState(false);
   const dismissDiscovery = useCallback(() => setDiscovery(null), []);
 
   type HudData = {
@@ -179,15 +180,28 @@ function OceanGame() {
   const [hudData, setHudData] = useState<HudData | null>(null);
 
   useEffect(() => {
+    let resizeTimer1: ReturnType<typeof setTimeout> | null = null;
+    let resizeTimer2: ReturnType<typeof setTimeout> | null = null;
+
     function updateOrientation() {
       setIsLandscape(window.innerWidth > window.innerHeight);
     }
+    function dispatchDelayedResize() {
+      updateOrientation();
+      if (resizeTimer1) clearTimeout(resizeTimer1);
+      if (resizeTimer2) clearTimeout(resizeTimer2);
+      resizeTimer1 = setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
+      resizeTimer2 = setTimeout(() => window.dispatchEvent(new Event("resize")), 350);
+    }
+
     updateOrientation();
     window.addEventListener("resize", updateOrientation);
-    window.addEventListener("orientationchange", updateOrientation);
+    window.addEventListener("orientationchange", dispatchDelayedResize);
     return () => {
+      if (resizeTimer1) clearTimeout(resizeTimer1);
+      if (resizeTimer2) clearTimeout(resizeTimer2);
       window.removeEventListener("resize", updateOrientation);
-      window.removeEventListener("orientationchange", updateOrientation);
+      window.removeEventListener("orientationchange", dispatchDelayedResize);
     };
   }, []);
 
@@ -197,6 +211,14 @@ function OceanGame() {
     }
     window.addEventListener("hud-update", onHudUpdate);
     return () => window.removeEventListener("hud-update", onHudUpdate);
+  }, []);
+
+  useEffect(() => {
+    function onBattleState(e: Event) {
+      setBattleActive(Boolean((e as CustomEvent<{ active?: boolean }>).detail?.active));
+    }
+    window.addEventListener("ocean-battle-state", onBattleState);
+    return () => window.removeEventListener("ocean-battle-state", onBattleState);
   }, []);
 
   const searchParams = useSearchParams();
@@ -263,6 +285,7 @@ function OceanGame() {
 
     return () => {
       if (game) game.destroy(true);
+      setBattleActive(false);
       window.removeEventListener("fish-discovered", onFishDiscovered);
     };
   }, [regionId]);
@@ -379,39 +402,43 @@ function OceanGame() {
         </div>
       </div>
 
-      <div
-        ref={stickRef}
-        onPointerDown={pointerJoystick}
-        onPointerMove={(e) => { if (e.buttons === 1 || e.pointerType === "touch") updateJoystick(e.clientX, e.clientY); }}
-        onPointerUp={releaseMove}
-        onPointerCancel={releaseMove}
-        onLostPointerCapture={releaseMove}
-        className={`absolute z-50 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur ${isLandscape ? "bottom-3 left-2 h-20 w-20" : "bottom-4 left-3 h-28 w-28 sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"}`}
-        style={{ touchAction: "none" }}
-      >
-        <div className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300/30 bg-cyan-400/10 ${isLandscape ? "h-14 w-14" : "h-20 w-20"}`} />
+      {!battleActive && (
         <div
-          className={`pointer-events-none absolute left-1/2 top-1/2 rounded-full border-2 border-cyan-200 bg-cyan-400/85 shadow-xl shadow-cyan-400/40 ${isLandscape ? "h-10 w-10" : "h-12 w-12"}`}
-          style={{ transform: `translate(calc(-50% + ${stick.x}px), calc(-50% + ${stick.y}px))` }}
-        />
-      </div>
+          ref={stickRef}
+          onPointerDown={pointerJoystick}
+          onPointerMove={(e) => { if (e.buttons === 1 || e.pointerType === "touch") updateJoystick(e.clientX, e.clientY); }}
+          onPointerUp={releaseMove}
+          onPointerCancel={releaseMove}
+          onLostPointerCapture={releaseMove}
+          className={`absolute z-50 rounded-full border-4 border-cyan-300/40 bg-black/55 backdrop-blur ${isLandscape ? "bottom-3 left-2 h-20 w-20" : "bottom-4 left-3 h-28 w-28 sm:bottom-6 sm:left-5 sm:h-32 sm:w-32"}`}
+          style={{ touchAction: "none" }}
+        >
+          <div className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300/30 bg-cyan-400/10 ${isLandscape ? "h-14 w-14" : "h-20 w-20"}`} />
+          <div
+            className={`pointer-events-none absolute left-1/2 top-1/2 rounded-full border-2 border-cyan-200 bg-cyan-400/85 shadow-xl shadow-cyan-400/40 ${isLandscape ? "h-10 w-10" : "h-12 w-12"}`}
+            style={{ transform: `translate(calc(-50% + ${stick.x}px), calc(-50% + ${stick.y}px))` }}
+          />
+        </div>
+      )}
 
-      <button
-        type="button"
-        onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); fish(); }}
-        className={`absolute z-50 ${isLandscape ? "bottom-3 right-2 h-20 w-20" : "bottom-4 right-3 h-24 w-24 sm:bottom-9 sm:right-5 sm:h-28 sm:w-28"}`}
-        style={{
-          backgroundImage: "url('/assets/ui/hook_button.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          touchAction: "none",
-          color: "transparent",
-          boxShadow: "0 0 0 3px #020617, 0 0 0 6px #facc15, 0 6px 0 rgba(0,0,0,0.5)",
-          imageRendering: "pixelated",
-        }}
-      >
-        낚시
-      </button>
+      {!battleActive && (
+        <button
+          type="button"
+          onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); fish(); }}
+          className={`absolute z-50 ${isLandscape ? "bottom-3 right-2 h-20 w-20" : "bottom-4 right-3 h-24 w-24 sm:bottom-9 sm:right-5 sm:h-28 sm:w-28"}`}
+          style={{
+            backgroundImage: "url('/assets/ui/hook_button.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            touchAction: "none",
+            color: "transparent",
+            boxShadow: "0 0 0 3px #020617, 0 0 0 6px #facc15, 0 6px 0 rgba(0,0,0,0.5)",
+            imageRendering: "pixelated",
+          }}
+        >
+          낚시
+        </button>
+      )}
 
       {bagOpen && (
         <BagOverlay
