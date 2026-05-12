@@ -520,18 +520,6 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const hs = 1 / this.CAM_ZOOM;
       const sw = this.SX, sh = this.SY;
 
-      this.hudBox = this.add.graphics().setScrollFactor(0).setDepth(99);
-
-      this.hudText = this.add.text(Math.round(20 * hs), Math.round(58 * hs), "", {
-        fontSize: this.isMobile ? `${Math.round(13 * hs)}px` : "13px",
-        color: "#facc15",
-        fontStyle: "bold",
-        stroke: "#020617",
-        strokeThickness: 3,
-        fontFamily: '"Press Start 2P", "Courier New", monospace',
-        lineSpacing: 6,
-      }).setScrollFactor(0).setDepth(100);
-
       const hintYOffset = this.isMobile ? (this.isLandscape ? 110 : 150) : 138;
       this.hintText = this.add.text(sw / 2, sh - hintYOffset * hs, "", {
         fontSize: this.isMobile ? `${Math.round(20 * hs)}px` : "16px",
@@ -563,19 +551,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     }
 
     drawHudBox() {
-      if (!this.hudBox) return;
-      this.hudBox.clear();
-      const hs = 1 / this.CAM_ZOOM;
-      const w = (this.isMobile ? 220 : 300) * hs, h = (this.isMobile ? (this.isLandscape ? 75 : 90) : 75) * hs;
-      const x = 8 * hs, y = 50 * hs;
-      this.hudBox.fillStyle(0x67e8f9, 1);
-      this.hudBox.fillRect(x - 4, y - 4, w + 8, h + 8);
-      this.hudBox.fillStyle(0x020617, 1);
-      this.hudBox.fillRect(x - 2, y - 2, w + 4, h + 4);
-      this.hudBox.fillStyle(0x07182b, 1);
-      this.hudBox.fillRect(x, y, w, h);
-      this.hudBox.fillStyle(0xfacc15, 1);
-      this.hudBox.fillRect(x, y, 4, h);
+      // HUD is rendered as a React HTML overlay — nothing to draw here
     }
 
     drawMinimap() {
@@ -672,11 +648,20 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const zone = ratio < 0.3 ? "🌊연안" : ratio < 0.6 ? "🌀중간" : "🌑심해";
       const timeInfo = this.timeSystem.current;
       const timeStr = `${timeInfo.emoji} ${formatGameTime(timeInfo)}${timeInfo.isMagicHour ? " ✦" : ""}`;
-      this.hudText.setText(
-        `🎒 ${weight.toFixed(1)} / ${limit}kg   ⛽ ${Math.max(0, Math.floor(this.fuel))}/${fuelLimit(this.saveData)}\n` +
-        `💰 ${this.saveData.gold.toLocaleString()}G   Lv.${getPlayerLevel(this.saveData)}   🐟 ${this.saveData.caught}\n` +
-        `${zone}   ⚓ ${dist}m   ${timeStr}`
-      );
+      window.dispatchEvent(new CustomEvent("hud-update", {
+        detail: {
+          weight,
+          limit,
+          fuel: Math.max(0, Math.floor(this.fuel)),
+          fuelMax: fuelLimit(this.saveData),
+          gold: this.saveData.gold,
+          level: getPlayerLevel(this.saveData),
+          caught: this.saveData.caught,
+          zone,
+          dist,
+          timeStr,
+        },
+      }));
     }
 
     showEvent(message: string, color = "#fde047") {
@@ -708,19 +693,16 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         this.skyOverlay.setSize(this.SX, this.SY);
       }
       this.drawVignette();
-      if (this.hudBox) {
-        this.drawHudBox();
+      if (this.minimap) {
         this.drawMinimap();
         this.repositionHud();
       }
     }
 
     repositionHud() {
-      if (!this.hudText || !this.hintText || !this.eventText) return;
+      if (!this.hintText || !this.eventText) return;
       const hs = 1 / this.CAM_ZOOM;
       const sw = this.SX, sh = this.SY;
-      this.hudText.setPosition(Math.round(20 * hs), Math.round(58 * hs));
-      this.hudText.setStyle({ fontSize: this.isMobile ? `${Math.round(13 * hs)}px` : "13px" });
       const hintYOffset = this.isMobile ? (this.isLandscape ? 110 : 150) : 138;
       this.hintText.setPosition(sw / 2, sh - hintYOffset * hs);
       this.eventText.setPosition(sw / 2, sh / 2 - (this.isMobile ? 40 : 30) * hs);

@@ -160,6 +160,13 @@ function OceanGame() {
   const [isLandscape, setIsLandscape] = useState(false);
   const dismissDiscovery = useCallback(() => setDiscovery(null), []);
 
+  type HudData = {
+    weight: number; limit: number; fuel: number; fuelMax: number;
+    gold: number; level: number; caught: number;
+    zone: string; dist: number; timeStr: string;
+  };
+  const [hudData, setHudData] = useState<HudData | null>(null);
+
   useEffect(() => {
     function updateOrientation() {
       setIsLandscape(window.innerWidth > window.innerHeight);
@@ -172,6 +179,14 @@ function OceanGame() {
       window.removeEventListener("orientationchange", updateOrientation);
     };
   }, []);
+  useEffect(() => {
+    function onHudUpdate(e: Event) {
+      setHudData((e as CustomEvent<HudData>).detail);
+    }
+    window.addEventListener("hud-update", onHudUpdate);
+    return () => window.removeEventListener("hud-update", onHudUpdate);
+  }, []);
+
   const searchParams = useSearchParams();
   const regionId = searchParams.get("region") || "busan";
 
@@ -223,6 +238,8 @@ function OceanGame() {
         scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
         render: { pixelArt: true, antialias: false },
       });
+      // force resize after first paint so canvas matches container dimensions
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     }
 
     startGame();
@@ -300,6 +317,16 @@ function OceanGame() {
           ⛵ 귀환
         </button>
       </div>
+
+      {hudData && (
+        <div className="pointer-events-none absolute left-2 z-40" style={{ top: "50px" }}>
+          <div className="pixel-hud-bar flex flex-col gap-0.5 text-[8px] leading-snug sm:text-[9px]">
+            <span>🎒 {hudData.weight.toFixed(1)}/{hudData.limit}kg&nbsp;&nbsp;⛽{hudData.fuel}/{hudData.fuelMax}</span>
+            <span>💰 {hudData.gold.toLocaleString()}G&nbsp;Lv.{hudData.level}&nbsp;🐟{hudData.caught}</span>
+            <span>{hudData.zone}&nbsp;⚓{hudData.dist}m&nbsp;{hudData.timeStr}</span>
+          </div>
+        </div>
+      )}
 
       <div className="pointer-events-none absolute right-3 top-2 z-50 hidden sm:block">
         <div className="pixel-hud-bar text-[10px]">
