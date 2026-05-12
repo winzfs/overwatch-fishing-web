@@ -1816,7 +1816,7 @@ export default function HarborPage() {
     <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
       <DiscordLaunchBridge />
       <section
-        className="relative h-[100dvh] w-screen pixel-vignette"
+        className="relative h-[100dvh] w-screen"
         style={{ background: "#020617" }}
       >
         <HarborScene

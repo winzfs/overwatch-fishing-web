@@ -335,26 +335,11 @@ h3 {
 /* ---------- Mobile ocean / Phaser scale overrides ---------- */
 
 @media (max-width: 640px) {
-  #phaser-game,
-  .phaser-game,
-  [data-phaser-root],
-  [data-phaser-root] > div,
-  [data-phaser-root] canvas,
-  canvas[data-engine="phaser"],
-  canvas[style*="image-rendering"] {
-    min-height: 100dvh !important;
-    min-width: 100vw !important;
-  }
-
-  #phaser-game canvas,
-  .phaser-game canvas,
-  [data-phaser-root] canvas,
+  /* Phaser canvas fills its parent — RESIZE mode handles sizing natively */
   body canvas:not(.pixel-mini-map) {
-    height: 100dvh !important;
+    display: block;
     max-height: none !important;
     max-width: none !important;
-    object-fit: cover !important;
-    width: 100vw !important;
   }
 
   .pixel-hud-bar,

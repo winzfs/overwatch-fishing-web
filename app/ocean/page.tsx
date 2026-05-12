@@ -220,7 +220,7 @@ function OceanGame() {
         parent: gameRef.current!,
         backgroundColor: "#082f49",
         scene: OceanSceneClass,
-        scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+        scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
         render: { pixelArt: true, antialias: false },
       });
     }
@@ -284,8 +284,8 @@ function OceanGame() {
   }
 
   return (
-    <main className="pixel-vignette relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
-      <div ref={gameRef} className="h-full w-full sea-bloom" />
+    <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
+      <div ref={gameRef} className="absolute inset-0" />
 
       <div className="pixel-hud-bar absolute left-2 top-2 z-50 flex flex-wrap items-center gap-1 text-[10px] sm:left-3 sm:top-3 sm:gap-2 sm:text-[10px]">
         <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">
