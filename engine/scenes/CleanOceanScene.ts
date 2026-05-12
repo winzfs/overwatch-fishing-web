@@ -16,6 +16,51 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
   return class CleanOceanScene extends BaseOceanScene {
     private lastBattleActive = false;
 
+    private getViewportMetrics() {
+      const winW = typeof window !== "undefined" ? window.innerWidth : this.scale.width;
+      const winH = typeof window !== "undefined" ? window.innerHeight : this.scale.height;
+      const visualW = typeof window !== "undefined" && window.visualViewport ? window.visualViewport.width : winW;
+      const visualH = typeof window !== "undefined" && window.visualViewport ? window.visualViewport.height : winH;
+      const scaleW = this.scale.width || winW;
+      const scaleH = this.scale.height || winH;
+
+      const width = Math.min(winW || scaleW, visualW || scaleW, scaleW || winW);
+      const height = Math.max(winH || scaleH, visualH || scaleH, scaleH || winH);
+      const shortest = Math.min(width, height);
+      const isMobile = shortest < 900;
+
+      // Mobile browser resize/orientation events can briefly report a canvas
+      // wider than tall even while the physical phone is portrait. Treat
+      // ambiguous mobile ratios as portrait and only use landscape when it is
+      // clearly wide.
+      const isClearlyLandscape = width >= height * 1.25;
+      const isLandscape = isMobile ? isClearlyLandscape : scaleW > scaleH;
+      const zoom = isMobile ? (isLandscape ? 0.62 : 0.7) : 1.0;
+
+      return {
+        width: scaleW,
+        height: scaleH,
+        isMobile,
+        isLandscape,
+        zoom,
+      };
+    }
+
+    private applyViewportMetrics() {
+      const metrics = this.getViewportMetrics();
+      this.isMobile = metrics.isMobile;
+      this.isLandscape = metrics.isLandscape;
+      this.CAM_ZOOM = metrics.zoom;
+      this.SX = metrics.width / this.CAM_ZOOM;
+      this.SY = metrics.height / this.CAM_ZOOM;
+
+      if (this.cameras?.main) {
+        this.cameras.main.setZoom(this.CAM_ZOOM);
+        this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
+        if (this.boat) this.cameras.main.startFollow(this.boat, true, 1, 1);
+      }
+    }
+
     drawVignette() {
       if (this.vignette) this.vignette.clear();
     }
@@ -25,6 +70,7 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     }
 
     createHud() {
+      this.applyViewportMetrics();
       const hs = 1 / (this.CAM_ZOOM || 1);
       const sw = this.SX || this.scale.width;
       const sh = this.SY || this.scale.height;
@@ -67,18 +113,7 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         }
       }
 
-      this.isMobile = this.scale.width < 900;
-      this.isLandscape = this.scale.width > this.scale.height;
-      this.CAM_ZOOM = this.isMobile ? (this.isLandscape ? 0.62 : 0.7) : 1.0;
-      this.SX = this.scale.width / this.CAM_ZOOM;
-      this.SY = this.scale.height / this.CAM_ZOOM;
-
-      if (this.cameras?.main) {
-        this.cameras.main.setZoom(this.CAM_ZOOM);
-        this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
-        if (this.boat) this.cameras.main.startFollow(this.boat, true, 1, 1);
-      }
-
+      this.applyViewportMetrics();
       this.refreshHud();
     }
 
