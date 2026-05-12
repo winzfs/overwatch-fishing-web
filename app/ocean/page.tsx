@@ -304,7 +304,20 @@ function OceanGame() {
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
       <div ref={gameRef} className="absolute inset-0" />
 
-      <div className="pixel-hud-bar absolute left-2 top-2 z-50 flex flex-wrap items-center gap-1 text-[10px] sm:left-3 sm:top-3 sm:gap-2 sm:text-[10px]">
+      <div
+        className="absolute left-2 top-2 z-50 flex flex-wrap items-center gap-1 sm:left-3 sm:top-3 sm:gap-2"
+        style={{
+          maxWidth: "calc(100vw - 16px)",
+          border: "1px solid rgba(125, 211, 252, 0.45)",
+          background: "rgba(2, 6, 23, 0.68)",
+          boxShadow: "0 2px 0 rgba(0, 0, 0, 0.5)",
+          padding: "3px 5px",
+          fontFamily: "'Press Start 2P', 'Courier New', monospace",
+          fontSize: "8px",
+          lineHeight: 1.35,
+          textShadow: "1px 1px 0 rgba(0, 0, 0, 0.8)",
+        }}
+      >
         <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">
           ⚓ HARBOR
         </a>
@@ -319,8 +332,23 @@ function OceanGame() {
       </div>
 
       {hudData && (
-        <div className="pointer-events-none absolute left-2 z-40" style={{ top: "50px" }}>
-          <div className="pixel-hud-bar flex flex-col gap-0.5 text-[8px] leading-snug sm:text-[9px]">
+        <div className="pointer-events-none absolute left-2 z-40" style={{ top: "36px" }}>
+          <div
+            className="flex flex-col gap-0.5"
+            style={{
+              maxWidth: "calc(100vw - 16px)",
+              border: "1px solid rgba(125, 211, 252, 0.38)",
+              background: "rgba(2, 6, 23, 0.62)",
+              boxShadow: "0 2px 0 rgba(0, 0, 0, 0.45)",
+              padding: "3px 5px",
+              fontFamily: "'Press Start 2P', 'Courier New', monospace",
+              fontSize: "7px",
+              lineHeight: 1.45,
+              color: "#e0f2fe",
+              textShadow: "1px 1px 0 rgba(0, 0, 0, 0.85)",
+              whiteSpace: "nowrap",
+            }}
+          >
             <span>🎒 {hudData.weight.toFixed(1)}/{hudData.limit}kg&nbsp;&nbsp;⛽{hudData.fuel}/{hudData.fuelMax}</span>
             <span>💰 {hudData.gold.toLocaleString()}G&nbsp;Lv.{hudData.level}&nbsp;🐟{hudData.caught}</span>
             <span>{hudData.zone}&nbsp;⚓{hudData.dist}m&nbsp;{hudData.timeStr}</span>
@@ -329,7 +357,19 @@ function OceanGame() {
       )}
 
       <div className="pointer-events-none absolute right-3 top-2 z-50 hidden sm:block">
-        <div className="pixel-hud-bar text-[10px]">
+        <div
+          style={{
+            border: "1px solid rgba(125, 211, 252, 0.45)",
+            background: "rgba(2, 6, 23, 0.68)",
+            boxShadow: "0 2px 0 rgba(0, 0, 0, 0.5)",
+            padding: "3px 5px",
+            fontFamily: "'Press Start 2P', 'Courier New', monospace",
+            fontSize: "8px",
+            lineHeight: 1.35,
+            color: "#e0f2fe",
+            textShadow: "1px 1px 0 rgba(0, 0, 0, 0.8)",
+          }}
+        >
           PC: WASD/ARROW · SPACE/ENTER · E
         </div>
       </div>
@@ -369,7 +409,21 @@ function OceanGame() {
       </button>
 
       <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 sm:hidden">
-        <div className="pixel-hud-bar text-[8px]">탐험 · 가방 · 귀환</div>
+        <div
+          style={{
+            border: "1px solid rgba(125, 211, 252, 0.38)",
+            background: "rgba(2, 6, 23, 0.62)",
+            boxShadow: "0 2px 0 rgba(0, 0, 0, 0.45)",
+            padding: "2px 4px",
+            fontFamily: "'Press Start 2P', 'Courier New', monospace",
+            fontSize: "6px",
+            lineHeight: 1.35,
+            color: "#e0f2fe",
+            textShadow: "1px 1px 0 rgba(0, 0, 0, 0.85)",
+          }}
+        >
+          탐험 · 가방 · 귀환
+        </div>
       </div>
 
       {bagOpen && (
