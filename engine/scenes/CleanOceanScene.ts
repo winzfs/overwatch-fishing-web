@@ -7,7 +7,7 @@ import { formatGameTime } from "../../lib/time/gameTime";
  *
  * The original scene still owns gameplay, fish spawning, input, battle flow,
  * multiplayer, audio and time systems. This wrapper removes unstable Phaser
- * screen-space HUD pieces and adds mobile-safe battle panel layout overrides.
+ * screen-space HUD pieces while keeping the battle interaction geometry intact.
  */
 export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
   const BaseOceanScene = createOceanScene(Phaser, cfg) as any;
@@ -57,11 +57,6 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.minimapWreck = null;
     }
 
-    createBattlePanel() {
-      if (super.createBattlePanel) super.createBattlePanel();
-      this.layoutBattlePanelForViewport();
-    }
-
     onResize(...args: any[]) {
       if (super.onResize) {
         try {
@@ -83,14 +78,12 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         if (this.boat) this.cameras.main.startFollow(this.boat, true, 1, 1);
       }
 
-      this.layoutBattlePanelForViewport();
       this.refreshHud();
     }
 
     update(time: number, delta: number) {
       if (super.update) super.update(time, delta);
       this.syncBattleStateForReact();
-      if (this.isFishing || this.phase !== "idle") this.layoutBattlePanelForViewport();
     }
 
     private syncBattleStateForReact() {
@@ -98,88 +91,6 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (active === this.lastBattleActive) return;
       this.lastBattleActive = active;
       window.dispatchEvent(new CustomEvent("ocean-battle-state", { detail: { active } }));
-    }
-
-    private safeSetFontSize(target: any, size: number) {
-      if (!target?.setFontSize) return;
-      target.setFontSize(`${Math.max(6, Math.round(size))}px`);
-    }
-
-    private safeSetDisplaySize(target: any, width: number, height: number) {
-      if (!target?.setDisplaySize) return;
-      target.setDisplaySize(Math.max(1, Math.round(width)), Math.max(1, Math.round(height)));
-    }
-
-    private safeSetPosition(target: any, x: number, y: number) {
-      if (!target?.setPosition) return;
-      target.setPosition(Math.round(x), Math.round(y));
-    }
-
-    private layoutBattlePanelForViewport() {
-      if (!this.panel) return;
-
-      const portraitMobile = this.isMobile && this.scale.height >= this.scale.width;
-      const landscapeMobile = this.isMobile && this.scale.width > this.scale.height;
-      const hs = 1 / (this.CAM_ZOOM || 1);
-      const sw = this.SX || this.scale.width;
-      const sh = this.SY || this.scale.height;
-      const scale = portraitMobile ? 0.72 : landscapeMobile ? 0.58 : 1.0;
-
-      const panelW = portraitMobile
-        ? Math.min(sw * 0.86, 520 * hs)
-        : landscapeMobile
-          ? Math.min(sw * 0.62, 520 * hs)
-          : Math.min(sw * 0.78, 620);
-      const panelH = portraitMobile
-        ? Math.min(sh * 0.50, 430 * hs)
-        : landscapeMobile
-          ? Math.min(sh * 0.76, 360 * hs)
-          : Math.min(sh * 0.70, 480);
-
-      const bottomReserve = portraitMobile ? 132 * hs : landscapeMobile ? 72 * hs : 24;
-      const cx = sw / 2;
-      const cy = Math.min(
-        sh - bottomReserve - panelH / 2,
-        Math.max(panelH / 2 + 8 * hs, sh * (portraitMobile ? 0.56 : 0.52))
-      );
-      const top = cy - panelH / 2;
-      const left = cx - panelW / 2;
-
-      if (this.panel.setSize) this.panel.setSize(panelW, panelH);
-      this.safeSetDisplaySize(this.panel, panelW, panelH);
-      this.safeSetPosition(this.panel, cx, cy);
-
-      const titleY = top + 44 * scale * hs;
-      const guideY = top + 86 * scale * hs;
-      const controlY = top + 165 * scale * hs;
-      const barY = top + 250 * scale * hs;
-      const tensionY = top + 300 * scale * hs;
-      const resultY = Math.min(top + panelH - 54 * scale * hs, top + 356 * scale * hs);
-
-      this.safeSetPosition(this.fishNameText || this.battleTitle, cx, titleY);
-      this.safeSetPosition(this.battleGuide, cx, guideY);
-      this.safeSetPosition(this.directionArrow, cx - 86 * scale * hs, controlY);
-      this.safeSetPosition(this.directionLabel, cx - 86 * scale * hs, controlY + 62 * scale * hs);
-      this.safeSetPosition(this.promptHookButton, cx + 86 * scale * hs, controlY);
-      this.safeSetPosition(this.promptPlusText, cx, controlY);
-      this.safeSetPosition(this.timingBar, cx, barY);
-      this.safeSetPosition(this.hitZone, cx, barY);
-      this.safeSetPosition(this.pointer, cx, barY);
-      this.safeSetPosition(this.tensionFill, left + 16 * hs, tensionY);
-      this.safeSetPosition(this.battleText, cx, resultY);
-
-      this.safeSetFontSize(this.fishNameText || this.battleTitle, 20 * scale * hs);
-      this.safeSetFontSize(this.battleGuide, 14 * scale * hs);
-      this.safeSetFontSize(this.directionLabel, 11 * scale * hs);
-      this.safeSetFontSize(this.promptPlusText, 14 * scale * hs);
-      this.safeSetFontSize(this.battleText, 17 * scale * hs);
-
-      this.safeSetDisplaySize(this.directionArrow, 72 * scale * hs, 72 * scale * hs);
-      this.safeSetDisplaySize(this.promptHookButton, 62 * scale * hs, 62 * scale * hs);
-      this.safeSetDisplaySize(this.timingBar, Math.min(panelW - 52 * hs, 420 * scale * hs), 42 * scale * hs);
-      this.safeSetDisplaySize(this.hitZone, 108 * scale * hs, 42 * scale * hs);
-      this.safeSetDisplaySize(this.pointer, 14 * scale * hs, 64 * scale * hs);
-      this.safeSetDisplaySize(this.tensionFill, Math.min(panelW - 52 * hs, 420 * scale * hs), 30 * scale * hs);
     }
 
     refreshHud() {
