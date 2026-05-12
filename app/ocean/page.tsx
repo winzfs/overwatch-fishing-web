@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { gradeInfo, regions } from "../../data/fishingData";
 import {
-  type BagItem,
   type SaveData,
   defaultSave,
   loadSave,
@@ -18,6 +17,17 @@ import {
 import { createOceanScene } from "../../engine/scenes/OceanScene";
 import { DiscoveryOverlay, type DiscoveryData, type FishDiscoveredDetail } from "../../components/ocean/DiscoveryOverlay";
 
+const PIXEL_FONT = "'Press Start 2P', 'Courier New', monospace";
+
+function compactPanelStyle(alpha = 0.7) {
+  return {
+    border: "1px solid rgba(125, 211, 252, 0.42)",
+    background: `rgba(2, 6, 23, ${alpha})`,
+    boxShadow: "0 2px 0 rgba(0, 0, 0, 0.48)",
+    fontFamily: PIXEL_FONT,
+    textShadow: "1px 1px 0 rgba(0, 0, 0, 0.85)",
+  } as const;
+}
 
 function BagOverlay({
   onClose,
@@ -149,7 +159,6 @@ function BagOverlay({
   );
 }
 
-
 function OceanGame() {
   const gameRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef<HTMLDivElement>(null);
@@ -164,6 +173,8 @@ function OceanGame() {
     weight: number; limit: number; fuel: number; fuelMax: number;
     gold: number; level: number; caught: number;
     zone: string; dist: number; timeStr: string;
+    boatX?: number; boatY?: number; worldWidth?: number; worldHeight?: number;
+    portX?: number; portY?: number; wreckX?: number; wreckY?: number;
   };
   const [hudData, setHudData] = useState<HudData | null>(null);
 
@@ -179,6 +190,7 @@ function OceanGame() {
       window.removeEventListener("orientationchange", updateOrientation);
     };
   }, []);
+
   useEffect(() => {
     function onHudUpdate(e: Event) {
       setHudData((e as CustomEvent<HudData>).detail);
@@ -238,7 +250,6 @@ function OceanGame() {
         scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
         render: { pixelArt: true, antialias: false },
       });
-      // force resize after first paint so canvas matches container dimensions
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     }
 
@@ -300,75 +311,69 @@ function OceanGame() {
     updateJoystick(e.clientX, e.clientY);
   }
 
+  const minimapW = isLandscape ? 86 : 78;
+  const minimapH = isLandscape ? 58 : 70;
+  const worldW = hudData?.worldWidth || 3000;
+  const worldH = hudData?.worldHeight || 2300;
+  const dotLeft = Math.max(5, Math.min(minimapW - 5, ((hudData?.boatX || 260) / worldW) * minimapW));
+  const dotTop = Math.max(5, Math.min(minimapH - 5, ((hudData?.boatY || 260) / worldH) * minimapH));
+  const portLeft = Math.max(4, Math.min(minimapW - 4, ((hudData?.portX || 180) / worldW) * minimapW));
+  const portTop = Math.max(4, Math.min(minimapH - 4, ((hudData?.portY || 180) / worldH) * minimapH));
+
   return (
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
       <div ref={gameRef} className="absolute inset-0" />
 
-      <div
-        className="absolute left-2 top-2 z-50 flex flex-wrap items-center gap-1 sm:left-3 sm:top-3 sm:gap-2"
+      <section className="absolute left-2 top-2 z-50 flex max-w-[calc(100vw-112px)] flex-col gap-1 text-cyan-50 sm:left-3 sm:top-3">
+        <div
+          className="pointer-events-auto flex w-fit items-center gap-2 px-2 py-1"
+          style={{ ...compactPanelStyle(0.72), fontSize: "8px", lineHeight: 1.35 }}
+        >
+          <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">⚓ HARBOR</a>
+          <button onClick={openBag} className="text-yellow-200">🎒 BAG</button>
+          <button onClick={returnHarbor} className="text-rose-200">⛵ 귀환</button>
+        </div>
+
+        {hudData && (
+          <div className="grid w-fit gap-1">
+            <div
+              className="grid grid-cols-2 gap-x-2 gap-y-1 px-2 py-1"
+              style={{ ...compactPanelStyle(0.64), fontSize: "7px", lineHeight: 1.55 }}
+            >
+              <span>🎒 {hudData.weight.toFixed(1)}/{hudData.limit}kg</span>
+              <span>⛽ {hudData.fuel}/{hudData.fuelMax}</span>
+              <span>💰 {hudData.gold.toLocaleString()}G</span>
+              <span>Lv.{hudData.level} · 🐟{hudData.caught}</span>
+            </div>
+            <div
+              className="w-fit px-2 py-1"
+              style={{ ...compactPanelStyle(0.58), fontSize: "6px", lineHeight: 1.5, color: "#e0f2fe" }}
+            >
+              {hudData.zone} · ⚓{hudData.dist}m · {hudData.timeStr}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section
+        className="pointer-events-none absolute right-2 top-2 z-50 overflow-hidden sm:right-3 sm:top-3"
         style={{
-          maxWidth: "calc(100vw - 16px)",
-          border: "1px solid rgba(125, 211, 252, 0.45)",
-          background: "rgba(2, 6, 23, 0.68)",
-          boxShadow: "0 2px 0 rgba(0, 0, 0, 0.5)",
-          padding: "3px 5px",
-          fontFamily: "'Press Start 2P', 'Courier New', monospace",
-          fontSize: "8px",
-          lineHeight: 1.35,
-          textShadow: "1px 1px 0 rgba(0, 0, 0, 0.8)",
+          ...compactPanelStyle(0.66),
+          width: `${minimapW}px`,
+          height: `${minimapH}px`,
+          padding: 3,
         }}
       >
-        <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">
-          ⚓ HARBOR
-        </a>
-        <span className="hidden text-slate-400 sm:inline">|</span>
-        <button onClick={openBag} className="text-yellow-200">
-          🎒 BAG
-        </button>
-        <span className="hidden text-slate-400 sm:inline">|</span>
-        <button onClick={returnHarbor} className="text-rose-200">
-          ⛵ 귀환
-        </button>
-      </div>
-
-      {hudData && (
-        <div className="pointer-events-none absolute left-2 z-40" style={{ top: "36px" }}>
-          <div
-            className="flex flex-col gap-0.5"
-            style={{
-              maxWidth: "calc(100vw - 16px)",
-              border: "1px solid rgba(125, 211, 252, 0.38)",
-              background: "rgba(2, 6, 23, 0.62)",
-              boxShadow: "0 2px 0 rgba(0, 0, 0, 0.45)",
-              padding: "3px 5px",
-              fontFamily: "'Press Start 2P', 'Courier New', monospace",
-              fontSize: "7px",
-              lineHeight: 1.45,
-              color: "#e0f2fe",
-              textShadow: "1px 1px 0 rgba(0, 0, 0, 0.85)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span>🎒 {hudData.weight.toFixed(1)}/{hudData.limit}kg&nbsp;&nbsp;⛽{hudData.fuel}/{hudData.fuelMax}</span>
-            <span>💰 {hudData.gold.toLocaleString()}G&nbsp;Lv.{hudData.level}&nbsp;🐟{hudData.caught}</span>
-            <span>{hudData.zone}&nbsp;⚓{hudData.dist}m&nbsp;{hudData.timeStr}</span>
-          </div>
+        <div className="relative h-full w-full overflow-hidden bg-slate-950/90">
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(rgba(103,232,249,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(103,232,249,0.25) 1px, transparent 1px)", backgroundSize: "25% 33%" }} />
+          <div className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 bg-yellow-300" style={{ left: portLeft, top: portTop }} />
+          <div className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.9)]" style={{ left: dotLeft, top: dotTop }} />
         </div>
-      )}
+      </section>
 
-      <div className="pointer-events-none absolute right-3 top-2 z-50 hidden sm:block">
+      <div className="pointer-events-none absolute right-3 top-[88px] z-50 hidden sm:block">
         <div
-          style={{
-            border: "1px solid rgba(125, 211, 252, 0.45)",
-            background: "rgba(2, 6, 23, 0.68)",
-            boxShadow: "0 2px 0 rgba(0, 0, 0, 0.5)",
-            padding: "3px 5px",
-            fontFamily: "'Press Start 2P', 'Courier New', monospace",
-            fontSize: "8px",
-            lineHeight: 1.35,
-            color: "#e0f2fe",
-            textShadow: "1px 1px 0 rgba(0, 0, 0, 0.8)",
-          }}
+          style={{ ...compactPanelStyle(0.62), padding: "3px 5px", fontSize: "8px", lineHeight: 1.35, color: "#e0f2fe" }}
         >
           PC: WASD/ARROW · SPACE/ENTER · E
         </div>
@@ -407,24 +412,6 @@ function OceanGame() {
       >
         낚시
       </button>
-
-      <div className="pointer-events-none absolute bottom-1 left-1/2 z-40 -translate-x-1/2 sm:hidden">
-        <div
-          style={{
-            border: "1px solid rgba(125, 211, 252, 0.38)",
-            background: "rgba(2, 6, 23, 0.62)",
-            boxShadow: "0 2px 0 rgba(0, 0, 0, 0.45)",
-            padding: "2px 4px",
-            fontFamily: "'Press Start 2P', 'Courier New', monospace",
-            fontSize: "6px",
-            lineHeight: 1.35,
-            color: "#e0f2fe",
-            textShadow: "1px 1px 0 rgba(0, 0, 0, 0.85)",
-          }}
-        >
-          탐험 · 가방 · 귀환
-        </div>
-      </div>
 
       {bagOpen && (
         <BagOverlay
