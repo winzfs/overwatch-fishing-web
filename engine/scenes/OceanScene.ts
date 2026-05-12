@@ -85,6 +85,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     buoys: any[] = [];
     crates: any[] = [];
     isMobile = false;
+    isLandscape = false;
     CAM_ZOOM = 1;
     SX = 0;
     SY = 0;
@@ -182,6 +183,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.saveData = loadSave();
       this.fuel = fuelLimit(this.saveData);
       this.isMobile = this.scale.width < 900;
+      this.isLandscape = this.scale.width > this.scale.height;
       this.CAM_ZOOM = this.isMobile ? 0.7 : 1.0;
       this.SX = this.scale.width / this.CAM_ZOOM;
       this.SY = this.scale.height / this.CAM_ZOOM;
@@ -215,9 +217,21 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       window.addEventListener("ocean-fish", this.onFish as EventListener);
       window.addEventListener("ocean-return", this.returnToHarbor as EventListener);
 
+      this.scale.on('resize', this.onResize, this);
       this.initMultiplayer();
-      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.cleanupMultiplayer(); this.audio.destroy(); });
-      this.events.once(Phaser.Scenes.Events.DESTROY, () => { this.cleanupMultiplayer(); this.audio.destroy(); });
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        window.removeEventListener("ocean-move", this.onMove as EventListener);
+        window.removeEventListener("ocean-fish", this.onFish as EventListener);
+        window.removeEventListener("ocean-return", this.returnToHarbor as EventListener);
+        this.scale.off('resize', this.onResize, this);
+        this.cleanupMultiplayer();
+        this.audio.destroy();
+      });
+      this.events.once(Phaser.Scenes.Events.DESTROY, () => {
+        this.scale.off('resize', this.onResize, this);
+        this.cleanupMultiplayer();
+        this.audio.destroy();
+      });
 
       this.audio.init();
       this.audio.startOceanAmbient();
@@ -518,7 +532,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         lineSpacing: 6,
       }).setScrollFactor(0).setDepth(100);
 
-      this.hintText = this.add.text(sw / 2, sh - (this.isMobile ? 150 : 138) * hs, "", {
+      const hintYOffset = this.isMobile ? (this.isLandscape ? 110 : 150) : 138;
+      this.hintText = this.add.text(sw / 2, sh - hintYOffset * hs, "", {
         fontSize: this.isMobile ? `${Math.round(20 * hs)}px` : "16px",
         color: "#fde047",
         align: "center",
@@ -551,7 +566,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (!this.hudBox) return;
       this.hudBox.clear();
       const hs = 1 / this.CAM_ZOOM;
-      const w = (this.isMobile ? 220 : 300) * hs, h = (this.isMobile ? 90 : 75) * hs;
+      const w = (this.isMobile ? 220 : 300) * hs, h = (this.isMobile ? (this.isLandscape ? 75 : 90) : 75) * hs;
       const x = 8 * hs, y = 50 * hs;
       this.hudBox.fillStyle(0x67e8f9, 1);
       this.hudBox.fillRect(x - 4, y - 4, w + 8, h + 8);
@@ -597,19 +612,22 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     createBattlePanel() {
       const hs = 1 / this.CAM_ZOOM;
       const width = this.SX, height = this.SY;
+      // Compress panel content vertically when screen height is limited (landscape mobile)
+      const p = Math.min(1.0, this.scale.height * 0.82 / 480);
+      const panelH = Math.min(480, this.scale.height * 0.88) * hs;
       this.panel = this.add.container(width / 2, height / 2).setScrollFactor(0).setVisible(false).setDepth(130);
-      const bg = this.add.rectangle(0, 0, width * 0.92, Math.min(480, this.SY * 0.88) * hs, 0x020617, 0.96);
+      const bg = this.add.rectangle(0, 0, width * 0.92, panelH, 0x020617, 0.96);
       bg.setStrokeStyle(5, 0x22d3ee);
-      this.battleTitle = this.add.text(0, -210 * hs, "🎣 낚시 전투!", { fontSize: `${Math.round(34 * hs)}px`, color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
-      this.fishNameText = this.add.text(0, -168 * hs, "", { fontSize: `${Math.round(21 * hs)}px`, color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      this.battleGuide = this.add.text(0, -130 * hs, "", { fontSize: `${Math.round(18 * hs)}px`, color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      this.directionArrow = this.add.image(-98 * hs, -58 * hs, "arrow_left");
-      this.directionArrow.setDisplaySize(96 * hs, 96 * hs);
+      this.battleTitle = this.add.text(0, -210 * hs * p, "🎣 낚시 전투!", { fontSize: `${Math.round(34 * hs * p)}px`, color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
+      this.fishNameText = this.add.text(0, -168 * hs * p, "", { fontSize: `${Math.round(21 * hs * p)}px`, color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
+      this.battleGuide = this.add.text(0, -130 * hs * p, "", { fontSize: `${Math.round(18 * hs * p)}px`, color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
+      this.directionArrow = this.add.image(-98 * hs * p, -58 * hs * p, "arrow_left");
+      this.directionArrow.setDisplaySize(96 * hs * p, 96 * hs * p);
       this.directionArrow.setVisible(false);
       this.directionArrow.setDepth(8);
 
-      this.directionLabel = this.add.text(-10 * hs, -58 * hs, "+", {
-        fontSize: `${Math.round(52 * hs)}px`,
+      this.directionLabel = this.add.text(-10 * hs * p, -58 * hs * p, "+", {
+        fontSize: `${Math.round(52 * hs * p)}px`,
         color: "#ffffff",
         align: "center",
         fontStyle: "bold",
@@ -619,27 +637,27 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.directionLabel.setVisible(false);
       this.directionLabel.setDepth(8);
 
-      this.promptHookButton = this.add.image(82 * hs, -58 * hs, "hook_button");
-      this.promptHookButton.setDisplaySize(78 * hs, 78 * hs);
+      this.promptHookButton = this.add.image(82 * hs * p, -58 * hs * p, "hook_button");
+      this.promptHookButton.setDisplaySize(78 * hs * p, 78 * hs * p);
       this.promptHookButton.setVisible(false);
       this.promptHookButton.setDepth(8);
 
       const isMob = this.isMobile;
-      const barH = (isMob ? 44 : 36) * hs;
-      const hitH = (isMob ? 62 : 50) * hs;
-      const ptrH = (isMob ? 90 : 80) * hs;
-      const tensH = (isMob ? 32 : 28) * hs;
-      this.timingBar = this.add.rectangle(0, 18 * hs, width * 0.72, barH, 0x172554);
+      const barH = (isMob ? 44 : 36) * hs * p;
+      const hitH = (isMob ? 62 : 50) * hs * p;
+      const ptrH = (isMob ? 90 : 80) * hs * p;
+      const tensH = (isMob ? 32 : 28) * hs * p;
+      this.timingBar = this.add.rectangle(0, 18 * hs * p, width * 0.72, barH, 0x172554);
       this.timingBar.setStrokeStyle(4, 0xffffff, 0.55);
-      this.hitZone = this.add.rectangle(0, 18 * hs, width * 0.18, hitH, 0x22c55e, 0.92);
+      this.hitZone = this.add.rectangle(0, 18 * hs * p, width * 0.18, hitH, 0x22c55e, 0.92);
       this.hitZone.setStrokeStyle(3, 0xbbf7d0, 1);
-      this.pointer = this.add.rectangle(-width * 0.34, 18 * hs, (isMob ? 16 : 12) * hs, ptrH, 0xfacc15);
+      this.pointer = this.add.rectangle(-width * 0.34, 18 * hs * p, (isMob ? 16 : 12) * hs * p, ptrH, 0xfacc15);
       this.pointer.setStrokeStyle(2, 0xffffff, 0.9);
-      const tensionBg = this.add.rectangle(0, 54 * hs, width * 0.72, tensH, 0x1e293b);
+      const tensionBg = this.add.rectangle(0, 54 * hs * p, width * 0.72, tensH, 0x1e293b);
       tensionBg.setStrokeStyle(3, 0xffffff, 0.4);
-      this.tensionFill = this.add.rectangle(-width * 0.36, 54 * hs, width * 0.36, tensH, 0x22c55e).setOrigin(0, 0.5);
-      this.battleText = this.add.text(0, 126 * hs, "", { fontSize: `${Math.round(23 * hs)}px`, color: "#fde047", fontStyle: "bold", align: "center", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      const sub = this.add.text(0, 184 * hs, "가방에 담긴 물고기는 항구에서 판매됩니다.", { fontSize: `${Math.round(13 * hs)}px`, color: "#94a3b8", stroke: "#000000", strokeThickness: 3, align: "center", wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
+      this.tensionFill = this.add.rectangle(-width * 0.36, 54 * hs * p, width * 0.36, tensH, 0x22c55e).setOrigin(0, 0.5);
+      this.battleText = this.add.text(0, 126 * hs * p, "", { fontSize: `${Math.round(23 * hs * p)}px`, color: "#fde047", fontStyle: "bold", align: "center", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
+      const sub = this.add.text(0, 184 * hs * p, "가방에 담긴 물고기는 항구에서 판매됩니다.", { fontSize: `${Math.round(13 * hs * p)}px`, color: "#94a3b8", stroke: "#000000", strokeThickness: 3, align: "center", wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
       this.panel.add([bg, this.battleTitle, this.fishNameText, this.battleGuide,
         this.directionArrow,
         this.directionLabel, this.promptHookButton, this.timingBar, this.hitZone, this.pointer, tensionBg, this.tensionFill, this.battleText, sub]);
@@ -667,6 +685,45 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const sh = this.SY;
       this.eventText.y = sh / 2 - (this.isMobile ? 40 : 30) * hs;
       this.tweens.add({ targets: this.eventText, y: sh / 2 - (this.isMobile ? 120 : 100) * hs, alpha: 0, duration: 1900, onComplete: () => this.eventText.setVisible(false) });
+    }
+
+    onResize(gameSize: { width: number; height: number }) {
+      const w = gameSize.width, h = gameSize.height;
+      const wasLandscape = this.isLandscape;
+      this.isMobile = w < 900;
+      this.isLandscape = w > h;
+      this.CAM_ZOOM = this.isMobile ? 0.7 : 1.0;
+      this.SX = w / this.CAM_ZOOM;
+      this.SY = h / this.CAM_ZOOM;
+      this.cameras.main.setZoom(this.CAM_ZOOM);
+
+      // Orientation flipped on mobile: restart for clean layout rebuild
+      if (wasLandscape !== this.isLandscape && this.isMobile) {
+        this.scene.restart();
+        return;
+      }
+
+      if (this.skyOverlay) {
+        this.skyOverlay.setPosition(this.SX / 2, this.SY / 2);
+        this.skyOverlay.setSize(this.SX, this.SY);
+      }
+      this.drawVignette();
+      if (this.hudBox) {
+        this.drawHudBox();
+        this.drawMinimap();
+        this.repositionHud();
+      }
+    }
+
+    repositionHud() {
+      if (!this.hudText || !this.hintText || !this.eventText) return;
+      const hs = 1 / this.CAM_ZOOM;
+      const sw = this.SX, sh = this.SY;
+      this.hudText.setPosition(Math.round(20 * hs), Math.round(58 * hs));
+      this.hudText.setStyle({ fontSize: this.isMobile ? `${Math.round(13 * hs)}px` : "13px" });
+      const hintYOffset = this.isMobile ? (this.isLandscape ? 110 : 150) : 138;
+      this.hintText.setPosition(sw / 2, sh - hintYOffset * hs);
+      this.eventText.setPosition(sw / 2, sh / 2 - (this.isMobile ? 40 : 30) * hs);
     }
 
     makeFishSize(grade: string) {
