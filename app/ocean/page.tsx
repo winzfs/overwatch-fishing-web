@@ -304,29 +304,53 @@ function OceanGame() {
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-black select-none" style={{ touchAction: "none" }}>
       <div ref={gameRef} className="absolute inset-0" />
 
-      <div className="pixel-hud-bar absolute left-2 top-2 z-50 flex flex-wrap items-center gap-1 text-[10px] sm:left-3 sm:top-3 sm:gap-2 sm:text-[10px]">
-        <a href="/harbor" className="text-cyan-100 hover:text-yellow-200">
-          ⚓ HARBOR
-        </a>
-        <span className="hidden text-slate-400 sm:inline">|</span>
-        <button onClick={openBag} className="text-yellow-200">
-          🎒 BAG
-        </button>
-        <span className="hidden text-slate-400 sm:inline">|</span>
-        <button onClick={returnHarbor} className="text-rose-200">
-          ⛵ 귀환
-        </button>
-      </div>
-
-      {hudData && (
-        <div className="pointer-events-none absolute left-2 z-40" style={{ top: "50px" }}>
-          <div className="pixel-hud-bar flex flex-col gap-0.5 text-[8px] leading-snug sm:text-[9px]">
-            <span>🎒 {hudData.weight.toFixed(1)}/{hudData.limit}kg&nbsp;&nbsp;⛽{hudData.fuel}/{hudData.fuelMax}</span>
-            <span>💰 {hudData.gold.toLocaleString()}G&nbsp;Lv.{hudData.level}&nbsp;🐟{hudData.caught}</span>
-            <span>{hudData.zone}&nbsp;⚓{hudData.dist}m&nbsp;{hudData.timeStr}</span>
-          </div>
+      {/* Compact HUD: uses inline styles to bypass pixel-hud-bar mobile overrides */}
+      <div className="absolute left-2 top-2 z-50 flex flex-col gap-1">
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: "2px",
+            background: "linear-gradient(180deg,rgba(7,24,43,0.93),rgba(2,6,23,0.97))",
+            boxShadow: "0 0 0 2px #020617,0 0 0 3px #67e8f9",
+            fontFamily: '"Press Start 2P","Courier New",monospace',
+            whiteSpace: "nowrap",
+          }}
+        >
+          <a
+            href="/harbor"
+            style={{ minHeight: 0, height: "28px", display: "flex", alignItems: "center", padding: "0 8px", fontSize: "9px", color: "#a5f3fc", letterSpacing: "0.03em" }}
+          >⚓ HARBOR</a>
+          <span style={{ color: "#334155", padding: "0 1px", fontSize: "9px" }}>|</span>
+          <button
+            onClick={openBag}
+            style={{ minHeight: 0, height: "28px", display: "flex", alignItems: "center", padding: "0 8px", fontSize: "9px", color: "#fde047", letterSpacing: "0.03em" }}
+          >🎒 BAG</button>
+          <span style={{ color: "#334155", padding: "0 1px", fontSize: "9px" }}>|</span>
+          <button
+            onClick={returnHarbor}
+            style={{ minHeight: 0, height: "28px", display: "flex", alignItems: "center", padding: "0 8px", fontSize: "9px", color: "#fda4af", letterSpacing: "0.03em" }}
+          >⛵ 귀환</button>
         </div>
-      )}
+
+        {hudData && (
+          <div
+            style={{
+              pointerEvents: "none",
+              background: "linear-gradient(180deg,rgba(7,24,43,0.88),rgba(2,6,23,0.92))",
+              boxShadow: "0 0 0 2px #020617,0 0 0 3px #67e8f9",
+              padding: "5px 8px",
+              fontFamily: '"Press Start 2P","Courier New",monospace',
+              fontSize: "8px",
+              lineHeight: "1.65",
+              color: "#bae6fd",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <div style={{ color: "#fde047" }}>🎒{hudData.weight.toFixed(1)}/{hudData.limit}kg ⛽{hudData.fuel}/{hudData.fuelMax}</div>
+            <div>💰{hudData.gold.toLocaleString()}G Lv.{hudData.level} 🐟{hudData.caught}</div>
+            <div style={{ color: "#7dd3fc" }}>{hudData.zone} ⚓{hudData.dist}m {hudData.timeStr}</div>
+          </div>
+        )}
+      </div>
 
       <div className="pointer-events-none absolute right-3 top-2 z-50 hidden sm:block">
         <div className="pixel-hud-bar text-[10px]">
