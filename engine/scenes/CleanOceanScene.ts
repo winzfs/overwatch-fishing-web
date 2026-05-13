@@ -6,9 +6,8 @@ import { formatGameTime } from "../../lib/time/gameTime";
  * Thin wrapper over the existing OceanScene.
  *
  * The original scene owns gameplay, fish spawning, battle flow and battle UI.
- * This wrapper only removes unstable Phaser screen-space HUD pieces and forwards
- * state to React. It intentionally does not recreate battle UI, because the
- * original battle logic depends on its own object geometry.
+ * This wrapper removes unstable Phaser screen-space HUD pieces, forwards state
+ * to React, and fits the native battle UI inside mobile portrait viewports.
  */
 export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
   const BaseOceanScene = createOceanScene(Phaser, cfg) as any;
@@ -36,12 +35,6 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const isClearlyLandscape = width >= height * 1.25;
       const isLandscape = isMobile ? isClearlyLandscape : scaleW > scaleH;
 
-      // The native OceanScene battle UI scales many screen-space elements by
-      // `hs = 1 / CAM_ZOOM`. A portrait zoom of 0.7 makes the battle panel too
-      // large on tall phones, causing the right/bottom edges to clip. Keep the
-      // original landscape zoom, but use a higher portrait zoom so the native
-      // panel, text, bars, and result area fit without recreating or mutating
-      // battle objects.
       const zoom = isMobile ? (isLandscape ? 0.62 : 0.92) : 1.0;
 
       return {
@@ -73,16 +66,8 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       return metrics.isMobile && !metrics.isLandscape;
     }
 
-    private nudgeBattlePanelIntoPortraitViewport() {
-      if (!this.isPortraitMobileViewport()) return;
-
-      // Move the native battle UI as one rigid group. This avoids recreating or
-      // resizing battle objects while keeping the timing bar, hit-zone and
-      // pointer geometry aligned with each other.
-      const hs = 1 / (this.CAM_ZOOM || 1);
-      const dx = -58 * hs;
-      const dy = -46 * hs;
-      const targets = [
+    private getBattleTargets() {
+      return [
         this.panel,
         this.battleTitle,
         this.fishNameText,
@@ -96,13 +81,89 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         this.hitZone,
         this.pointer,
         this.tensionFill,
-      ];
+      ].filter(Boolean);
+    }
+
+    private boundsOfTargets(targets: any[]) {
+      const points: Array<{ x: number; y: number }> = [];
 
       for (const target of targets) {
-        if (!target || target.getData?.("portraitNudged")) continue;
-        if (typeof target.x === "number") target.x += dx;
-        if (typeof target.y === "number") target.y += dy;
-        target.setData?.("portraitNudged", true);
+        if (target.getBounds) {
+          const b = target.getBounds();
+          points.push(
+            { x: b.left, y: b.top },
+            { x: b.right, y: b.bottom },
+          );
+        } else if (typeof target.x === "number" && typeof target.y === "number") {
+          points.push({ x: target.x, y: target.y });
+        }
+      }
+
+      if (!points.length) return null;
+      const left = Math.min(...points.map((p) => p.x));
+      const right = Math.max(...points.map((p) => p.x));
+      const top = Math.min(...points.map((p) => p.y));
+      const bottom = Math.max(...points.map((p) => p.y));
+
+      return {
+        left,
+        right,
+        top,
+        bottom,
+        width: Math.max(1, right - left),
+        height: Math.max(1, bottom - top),
+        cx: (left + right) / 2,
+        cy: (top + bottom) / 2,
+      };
+    }
+
+    private scaleTarget(target: any, scale: number) {
+      if (!target || scale === 1) return;
+
+      if (target.setData?.("portraitFitScaled", true) && false) return;
+
+      // Rectangles are used for the bar, hit-zone, pointer, panel and tension.
+      // Update their logical size, not only visual scale, so later battle math
+      // based on width/height remains closer to the displayed geometry.
+      if (target.type === "Rectangle" && target.setSize && typeof target.width === "number" && typeof target.height === "number") {
+        target.setSize(target.width * scale, target.height * scale);
+      } else if (target.setScale) {
+        const sx = typeof target.scaleX === "number" ? target.scaleX : 1;
+        const sy = typeof target.scaleY === "number" ? target.scaleY : 1;
+        target.setScale(sx * scale, sy * scale);
+      }
+    }
+
+    private fitBattlePanelToPortraitViewport() {
+      if (!this.isPortraitMobileViewport()) return;
+
+      const targets = this.getBattleTargets();
+      if (!targets.length || targets.some((target) => target.getData?.("portraitFitApplied"))) return;
+
+      const hs = 1 / (this.CAM_ZOOM || 1);
+      const sw = this.SX || this.scale.width;
+      const sh = this.SY || this.scale.height;
+
+      const topSafe = 128 * hs;
+      const bottomSafe = 138 * hs;
+      const sideSafe = 14 * hs;
+      const availableW = Math.max(120, sw - sideSafe * 2);
+      const availableH = Math.max(120, sh - topSafe - bottomSafe);
+      const targetCx = sw / 2;
+      const targetCy = topSafe + availableH / 2;
+
+      const before = this.boundsOfTargets(targets);
+      if (!before) return;
+
+      // Keep a little padding inside the available portrait viewport. Do not
+      // upscale; only shrink when the native landscape-like panel is too large.
+      const fitScale = Math.min(1, 0.94 * availableW / before.width, 0.94 * availableH / before.height);
+
+      for (const target of targets) {
+        if (typeof target.x === "number") target.x = targetCx + (target.x - before.cx) * fitScale;
+        if (typeof target.y === "number") target.y = targetCy + (target.y - before.cy) * fitScale;
+        this.scaleTarget(target, fitScale);
+        target.setData?.("portraitFitApplied", true);
       }
     }
 
@@ -151,7 +212,7 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
     createBattlePanel() {
       if (super.createBattlePanel) super.createBattlePanel();
-      this.nudgeBattlePanelIntoPortraitViewport();
+      this.fitBattlePanelToPortraitViewport();
     }
 
     onResize(...args: any[]) {
