@@ -115,10 +115,9 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
     private separateBattleBarsForPortraitViewport() {
       if (!this.isPortraitMobileViewport()) return;
-      if (this.timingBar?.getData?.("portraitBarGapApplied")) return;
 
-      const upperGaugeTargets = [this.tensionFill].filter(Boolean);
-      const lowerGaugeTargets = [this.timingBar, this.hitZone, this.pointer].filter(Boolean);
+      const upperGaugeTargets = [this.timingBar, this.hitZone, this.pointer].filter(Boolean);
+      const lowerGaugeTargets = [this.tensionFill].filter(Boolean);
       if (!upperGaugeTargets.length || !lowerGaugeTargets.length) return;
 
       const hs = 1 / (this.CAM_ZOOM || 1);
@@ -127,15 +126,13 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (!upper || !lower) return;
 
       const panelBounds = this.panel?.getBounds ? this.panel.getBounds() : null;
-      const currentGap = lower.top - upper.bottom;
-      const desiredGap = 34 * hs;
-      const preferredDrop = 48 * hs;
-      let dy = Math.max(preferredDrop, desiredGap - currentGap);
+      const desiredGap = 26 * hs;
+      const minLowerTop = upper.bottom + desiredGap;
+      let dy = Math.max(0, minLowerTop - lower.top);
       const maxLowerBottom = Math.min((panelBounds?.bottom ?? this.SY) - 118 * hs, (this.SY || this.scale.height) - 150 * hs);
       if (lower.bottom + dy > maxLowerBottom) dy = Math.max(0, maxLowerBottom - lower.bottom);
 
       if (dy > 0) this.moveTargets(lowerGaugeTargets, 0, dy);
-      for (const target of lowerGaugeTargets) target.setData?.("portraitBarGapApplied", true);
     }
 
     private fitBattlePanelToPortraitViewport() {
