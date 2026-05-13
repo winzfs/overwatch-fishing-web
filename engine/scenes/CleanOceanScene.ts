@@ -2,13 +2,6 @@ import { createOceanScene, type OceanSceneConfig } from "./OceanScene";
 import { bagWeight, cargoLimit, fuelLimit, getPlayerLevel } from "../../app/gameSave";
 import { formatGameTime } from "../../lib/time/gameTime";
 
-/**
- * Thin wrapper over the existing OceanScene.
- *
- * The original scene owns gameplay, fish spawning, battle flow and battle UI.
- * This wrapper removes unstable Phaser screen-space HUD pieces, forwards state
- * to React, and fits the native battle UI inside mobile portrait viewports.
- */
 export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
   const BaseOceanScene = createOceanScene(Phaser, cfg) as any;
 
@@ -22,28 +15,14 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const visualH = typeof window !== "undefined" && window.visualViewport ? window.visualViewport.height : winH;
       const scaleW = this.scale.width || winW;
       const scaleH = this.scale.height || winH;
-
       const width = Math.min(winW || scaleW, visualW || scaleW, scaleW || winW);
       const height = Math.max(winH || scaleH, visualH || scaleH, scaleH || winH);
       const shortest = Math.min(width, height);
       const isMobile = shortest < 900;
-
-      // Mobile browser resize/orientation events can briefly report a canvas
-      // wider than tall even while the physical phone is portrait. Treat
-      // ambiguous mobile ratios as portrait and only use landscape when it is
-      // clearly wide.
       const isClearlyLandscape = width >= height * 1.25;
       const isLandscape = isMobile ? isClearlyLandscape : scaleW > scaleH;
-
       const zoom = isMobile ? (isLandscape ? 0.62 : 0.92) : 1.0;
-
-      return {
-        width: scaleW,
-        height: scaleH,
-        isMobile,
-        isLandscape,
-        zoom,
-      };
+      return { width: scaleW, height: scaleH, isMobile, isLandscape, zoom };
     }
 
     private applyViewportMetrics() {
@@ -90,10 +69,7 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       for (const target of targets) {
         if (target.getBounds) {
           const b = target.getBounds();
-          points.push(
-            { x: b.left, y: b.top },
-            { x: b.right, y: b.bottom },
-          );
+          points.push({ x: b.left, y: b.top }, { x: b.right, y: b.bottom });
         } else if (typeof target.x === "number" && typeof target.y === "number") {
           points.push({ x: target.x, y: target.y });
         }
@@ -120,11 +96,6 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     private scaleTarget(target: any, scale: number) {
       if (!target || scale === 1) return;
 
-      if (target.setData?.("portraitFitScaled", true) && false) return;
-
-      // Rectangles are used for the bar, hit-zone, pointer, panel and tension.
-      // Update their logical size, not only visual scale, so later battle math
-      // based on width/height remains closer to the displayed geometry.
       if (target.type === "Rectangle" && target.setSize && typeof target.width === "number" && typeof target.height === "number") {
         target.setSize(target.width * scale, target.height * scale);
       } else if (target.setScale) {
@@ -134,16 +105,51 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       }
     }
 
+    private moveTargets(targets: any[], dx: number, dy: number) {
+      for (const target of targets) {
+        if (!target) continue;
+        if (typeof target.x === "number") target.x += dx;
+        if (typeof target.y === "number") target.y += dy;
+      }
+    }
+
+    private separateBattleBarsForPortraitViewport() {
+      if (!this.isPortraitMobileViewport()) return;
+      if (this.timingBar?.getData?.("portraitBarGapApplied")) return;
+
+      const upperGaugeTargets = [this.tensionFill].filter(Boolean);
+      const lowerGaugeTargets = [this.timingBar, this.hitZone, this.pointer].filter(Boolean);
+      if (!upperGaugeTargets.length || !lowerGaugeTargets.length) return;
+
+      const hs = 1 / (this.CAM_ZOOM || 1);
+      const upper = this.boundsOfTargets(upperGaugeTargets);
+      const lower = this.boundsOfTargets(lowerGaugeTargets);
+      if (!upper || !lower) return;
+
+      const panelBounds = this.panel?.getBounds ? this.panel.getBounds() : null;
+      const currentGap = lower.top - upper.bottom;
+      const desiredGap = 34 * hs;
+      const preferredDrop = 48 * hs;
+      let dy = Math.max(preferredDrop, desiredGap - currentGap);
+      const maxLowerBottom = Math.min((panelBounds?.bottom ?? this.SY) - 118 * hs, (this.SY || this.scale.height) - 150 * hs);
+      if (lower.bottom + dy > maxLowerBottom) dy = Math.max(0, maxLowerBottom - lower.bottom);
+
+      if (dy > 0) this.moveTargets(lowerGaugeTargets, 0, dy);
+      for (const target of lowerGaugeTargets) target.setData?.("portraitBarGapApplied", true);
+    }
+
     private fitBattlePanelToPortraitViewport() {
       if (!this.isPortraitMobileViewport()) return;
 
       const targets = this.getBattleTargets();
-      if (!targets.length || targets.some((target) => target.getData?.("portraitFitApplied"))) return;
+      if (!targets.length || targets.some((target) => target.getData?.("portraitFitApplied"))) {
+        this.separateBattleBarsForPortraitViewport();
+        return;
+      }
 
       const hs = 1 / (this.CAM_ZOOM || 1);
       const sw = this.SX || this.scale.width;
       const sh = this.SY || this.scale.height;
-
       const topSafe = 128 * hs;
       const bottomSafe = 138 * hs;
       const sideSafe = 14 * hs;
@@ -154,9 +160,6 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
       const before = this.boundsOfTargets(targets);
       if (!before) return;
-
-      // Keep a little padding inside the available portrait viewport. Do not
-      // upscale; only shrink when the native landscape-like panel is too large.
       const fitScale = Math.min(1, 0.94 * availableW / before.width, 0.94 * availableH / before.height);
 
       for (const target of targets) {
@@ -165,6 +168,8 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         this.scaleTarget(target, fitScale);
         target.setData?.("portraitFitApplied", true);
       }
+
+      this.separateBattleBarsForPortraitViewport();
     }
 
     drawVignette() {
@@ -228,8 +233,43 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.refreshHud();
     }
 
+    updateWaveOverlays(time?: number) {
+      if (!this.sys || !this.textures || !Array.isArray(this.waveOverlays)) return;
+      if (this.scene?.isActive?.() === false) return;
+
+      const now = Number.isFinite(time as number) ? Number(time) : (this.time?.now || 0);
+      const textureKeys = ["wave_1", "wave_2", "wave_3"].filter((key) => this.textures.exists(key));
+      if (!textureKeys.length) return;
+
+      this.waveOverlays = this.waveOverlays.filter((wave: any) => wave && !wave.destroyed && wave.scene);
+
+      for (const wave of this.waveOverlays) {
+        if (!wave || wave.destroyed || wave.active === false || !wave.scene) continue;
+        const rawPhase = Number(wave.getData?.("phase") ?? 0);
+        const phase = Number.isFinite(rawPhase) ? rawPhase : 0;
+        const rawFrame = Math.floor((now + phase) / 360) % textureKeys.length;
+        const frame = Phaser.Math.Clamp(Number.isFinite(rawFrame) ? rawFrame : 0, 0, textureKeys.length - 1);
+        const wantTex = textureKeys[frame] || textureKeys[0];
+        if (!wantTex || !this.textures.exists(wantTex)) continue;
+
+        try {
+          if (!wave.texture || wave.texture.key !== wantTex) wave.setTexture(wantTex);
+        } catch (error) {
+          console.warn("Skipped invalid wave overlay texture update", error);
+        }
+      }
+    }
+
     update(time: number, delta: number) {
-      if (super.update) super.update(time, delta);
+      if (!this.sys || this.scene?.isActive?.() === false) return;
+      if (super.update) {
+        try {
+          super.update(time, delta);
+        } catch (error) {
+          console.warn("Ocean update fallback", error);
+        }
+      }
+      this.fitBattlePanelToPortraitViewport();
       this.syncBattleStateForReact();
     }
 
@@ -244,9 +284,7 @@ export function createCleanOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       const save = this.saveData;
       const timeInfo = this.timeSystem?.current;
       const zone = this.getCurrentZone ? this.getCurrentZone() : cfg.region?.name || "해역";
-      const dist = this.boat
-        ? Math.round(Phaser.Math.Distance.Between(this.boat.x, this.boat.y, this.PORT_X, this.PORT_Y))
-        : 0;
+      const dist = this.boat ? Math.round(Phaser.Math.Distance.Between(this.boat.x, this.boat.y, this.PORT_X, this.PORT_Y)) : 0;
 
       window.dispatchEvent(new CustomEvent("hud-update", {
         detail: {
