@@ -72,14 +72,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     lastOnlineDirection = "down";
     multiplayerReady = false;
 
-    hudText: any;
-    hudBox: any;
     hintText: any;
     eventText: any;
-    minimap: any;
-    minimapBoat: any;
-    minimapPort: any;
-    minimapWreck: any;
     vignette: any;
     waveOverlays: any[] = [];
     buoys: any[] = [];
@@ -91,19 +85,14 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     SY = 0;
     boatBobBase = 0;
 
-    panel: any;
-    battleTitle: any;
-    fishNameText: any;
-    battleGuide: any;
-    battleText: any;
-    directionArrow: any;
-    directionLabel: any;
-    promptPlusText: any;
-    promptHookButton: any;
-    timingBar: any;
-    hitZone: any;
-    pointer: any;
-    tensionFill: any;
+    // React UI bridge — battle state (plain numbers, no Phaser objects)
+    pointerXRatio = -1;
+    hitZoneCenterRatio = 0;
+    hitZoneWidthRatio = 0.2;
+    currentGuide = "";
+    currentMessage = "";
+    currentMessageColor = "#fde047";
+    minimapThrottle = 0;
 
     audio = new AudioSystem();
     timeSystem = new TimeSystem();
@@ -543,11 +532,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         fontFamily: '"Press Start 2P", "Courier New", monospace',
       }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setDepth(110);
 
-      const ms = Math.round(6 * hs);
-      this.minimap = this.add.graphics().setScrollFactor(0).setDepth(101);
-      this.minimapPort = this.add.rectangle(0, 0, ms, ms, 0xfacc15, 1).setScrollFactor(0).setDepth(102);
-      this.minimapWreck = this.add.rectangle(0, 0, Math.round(5 * hs), Math.round(5 * hs), 0xf87171, 1).setScrollFactor(0).setDepth(102);
-      this.minimapBoat = this.add.rectangle(0, 0, ms, ms, 0x22d3ee, 1).setScrollFactor(0).setDepth(103);
+      // Minimap is rendered as a React HTML canvas overlay — no Phaser objects needed
     }
 
     drawHudBox() {
@@ -555,88 +540,21 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     }
 
     drawMinimap() {
-      if (!this.SX || !this.minimap) return;
-      const hs = 1 / this.CAM_ZOOM;
-      const w = (this.isMobile ? 90 : 132) * hs, h = (this.isMobile ? 68 : 100) * hs;
-      const x = this.SX - w - 12 * hs, y = 58 * hs;
-      this.minimap.clear();
-      this.minimap.fillStyle(0x67e8f9, 1);
-      this.minimap.fillRect(x - 3, y - 3, w + 6, h + 6);
-      this.minimap.fillStyle(0x020617, 1);
-      this.minimap.fillRect(x, y, w, h);
-      const portX = x + (this.PORT_X / this.WORLD_WIDTH) * w;
-      const portY = y + (this.PORT_Y / this.WORLD_HEIGHT) * h;
-      this.minimap.fillStyle(0x0e7490, 0.7);
-      this.minimap.fillCircle(portX, portY, (this.isMobile ? 12 : 18) * hs);
-      this.minimap.fillStyle(0x0c1e2e, 0.9);
-      this.minimap.fillRect(x + w * 0.5, y + h * 0.4, w * 0.5, h * 0.6);
-      this.minimap.fillStyle(0xf59e0b, 0.7);
-      this.minimap.fillCircle(x + w * 0.75, y + h * 0.65, (this.isMobile ? 3 : 4) * hs);
-      this.minimap.lineStyle(1, 0x1e3a5f, 0.6);
-      for (let gx = 0; gx <= 4; gx++) this.minimap.lineBetween(x + (gx * w) / 4, y, x + (gx * w) / 4, y + h);
-      for (let gy = 0; gy <= 3; gy++) this.minimap.lineBetween(x, y + (gy * h) / 3, x + w, y + (gy * h) / 3);
-      this.minimap.lineStyle(2, 0x67e8f9, 0.85);
-      this.minimap.strokeRect(x + 1, y + 1, w - 2, h - 2);
-
-      this.minimapBoat.setPosition(x + (this.boat.x / this.WORLD_WIDTH) * w, y + (this.boat.y / this.WORLD_HEIGHT) * h);
-      this.minimapPort.setPosition(portX, portY);
-      if (this.minimapWreck) {
-        this.minimapWreck.setPosition(x + (2380 / this.WORLD_WIDTH) * w, y + (1030 / this.WORLD_HEIGHT) * h);
-      }
+      if (!this.boat) return;
+      window.dispatchEvent(new CustomEvent("minimap-update", {
+        detail: {
+          boatX: this.boat.x,
+          boatY: this.boat.y,
+          worldW: this.WORLD_WIDTH,
+          worldH: this.WORLD_HEIGHT,
+          portX: this.PORT_X,
+          portY: this.PORT_Y,
+        },
+      }));
     }
 
     createBattlePanel() {
-      const hs = 1 / this.CAM_ZOOM;
-      const width = this.SX, height = this.SY;
-      // Compress panel content vertically when screen height is limited (landscape mobile)
-      const p = Math.min(1.0, this.scale.height * 0.82 / 480);
-      const panelH = Math.min(480, this.scale.height * 0.88) * hs;
-      this.panel = this.add.container(width / 2, height / 2).setScrollFactor(0).setVisible(false).setDepth(130);
-      const bg = this.add.rectangle(0, 0, width * 0.92, panelH, 0x020617, 0.96);
-      bg.setStrokeStyle(5, 0x22d3ee);
-      this.battleTitle = this.add.text(0, -210 * hs * p, "🎣 낚시 전투!", { fontSize: `${Math.round(34 * hs * p)}px`, color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 5 }).setOrigin(0.5);
-      this.fishNameText = this.add.text(0, -168 * hs * p, "", { fontSize: `${Math.round(21 * hs * p)}px`, color: "#fde047", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      this.battleGuide = this.add.text(0, -130 * hs * p, "", { fontSize: `${Math.round(18 * hs * p)}px`, color: "#cbd5e1", align: "center", fontStyle: "bold", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      this.directionArrow = this.add.image(-98 * hs * p, -58 * hs * p, "arrow_left");
-      this.directionArrow.setDisplaySize(96 * hs * p, 96 * hs * p);
-      this.directionArrow.setVisible(false);
-      this.directionArrow.setDepth(8);
-
-      this.directionLabel = this.add.text(-10 * hs * p, -58 * hs * p, "+", {
-        fontSize: `${Math.round(52 * hs * p)}px`,
-        color: "#ffffff",
-        align: "center",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 8,
-      }).setOrigin(0.5);
-      this.directionLabel.setVisible(false);
-      this.directionLabel.setDepth(8);
-
-      this.promptHookButton = this.add.image(82 * hs * p, -58 * hs * p, "hook_button");
-      this.promptHookButton.setDisplaySize(78 * hs * p, 78 * hs * p);
-      this.promptHookButton.setVisible(false);
-      this.promptHookButton.setDepth(8);
-
-      const isMob = this.isMobile;
-      const barH = (isMob ? 44 : 36) * hs * p;
-      const hitH = (isMob ? 62 : 50) * hs * p;
-      const ptrH = (isMob ? 90 : 80) * hs * p;
-      const tensH = (isMob ? 32 : 28) * hs * p;
-      this.timingBar = this.add.rectangle(0, 18 * hs * p, width * 0.72, barH, 0x172554);
-      this.timingBar.setStrokeStyle(4, 0xffffff, 0.55);
-      this.hitZone = this.add.rectangle(0, 18 * hs * p, width * 0.18, hitH, 0x22c55e, 0.92);
-      this.hitZone.setStrokeStyle(3, 0xbbf7d0, 1);
-      this.pointer = this.add.rectangle(-width * 0.34, 18 * hs * p, (isMob ? 16 : 12) * hs * p, ptrH, 0xfacc15);
-      this.pointer.setStrokeStyle(2, 0xffffff, 0.9);
-      const tensionBg = this.add.rectangle(0, 54 * hs * p, width * 0.72, tensH, 0x1e293b);
-      tensionBg.setStrokeStyle(3, 0xffffff, 0.4);
-      this.tensionFill = this.add.rectangle(-width * 0.36, 54 * hs * p, width * 0.36, tensH, 0x22c55e).setOrigin(0, 0.5);
-      this.battleText = this.add.text(0, 126 * hs * p, "", { fontSize: `${Math.round(23 * hs * p)}px`, color: "#fde047", fontStyle: "bold", align: "center", stroke: "#000000", strokeThickness: 4, wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      const sub = this.add.text(0, 184 * hs * p, "가방에 담긴 물고기는 항구에서 판매됩니다.", { fontSize: `${Math.round(13 * hs * p)}px`, color: "#94a3b8", stroke: "#000000", strokeThickness: 3, align: "center", wordWrap: { width: width * 0.82 } }).setOrigin(0.5);
-      this.panel.add([bg, this.battleTitle, this.fishNameText, this.battleGuide,
-        this.directionArrow,
-        this.directionLabel, this.promptHookButton, this.timingBar, this.hitZone, this.pointer, tensionBg, this.tensionFill, this.battleText, sub]);
+      // Battle UI is rendered as a React HTML overlay — no Phaser objects needed
     }
 
     refreshHud() {
@@ -693,10 +611,7 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         this.skyOverlay.setSize(this.SX, this.SY);
       }
       this.drawVignette();
-      if (this.minimap) {
-        this.drawMinimap();
-        this.repositionHud();
-      }
+      this.repositionHud();
     }
 
     repositionHud() {
@@ -772,24 +687,30 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         this.showEvent(`${grade.emoji} 희귀한 기척이 느껴진다!`, grade.color);
         this.audio.playRareAlert();
       }
-      this.fishNameText.setText(`${grade.emoji} ${grade.name} 입질!`).setColor(grade.color);
-      this.battleText.setText("");
-      const width = this.SX;
       const rodBonus = (this.saveData.upgrades.rod || 0) * 0.014;
       const sizePenalty =
         this.fishSize.sizeRank === "괴물급" ? 0.055 :
         this.fishSize.sizeRank === "초대형" ? 0.035 :
         this.fishSize.sizeRank === "대형" ? 0.018 : 0;
 
-      this.hitZone.width = width * Math.max(0.075, Math.min(0.31, grade.zone + rodBonus - sizePenalty));
-      this.hitZone.x = Phaser.Math.Between(-Math.floor(width * 0.25), Math.floor(width * 0.25));
-      this.pointer.x = -this.timingBar.width / 2;
+      // bar width = SX * 0.72; hit zone width is fraction of SX → convert to fraction of bar width
+      const zoneW = Math.max(0.075, Math.min(0.31, grade.zone + rodBonus - sizePenalty));
+      this.hitZoneWidthRatio = zoneW / 0.72;
+      // center range: ±0.25*SX → ±0.25/0.36 ≈ ±0.694 of bar half-width
+      this.hitZoneCenterRatio = (Phaser.Math.Between(-25, 25)) / 36;
+      this.pointerXRatio = -1;
       this.pointerDirection = 1;
-      this.hideDirectionPrompt();
-      this.battleGuide.setText("1단계 입질: 초록 구간에서 낚시 버튼! PERFECT면 장력 보너스");
-      this.panel.setVisible(true);
+      this.currentGuide = "1단계 입질: 초록 구간에서 낚시 버튼! PERFECT면 장력 보너스";
+      this.currentMessage = "";
+      this.currentMessageColor = "#fde047";
       this.hintText.setText("");
-      this.updateTensionBar();
+      window.dispatchEvent(new CustomEvent("battle-start", {
+        detail: {
+          fishName: `${grade.emoji} ${grade.name} 입질!`,
+          gradeColor: grade.color,
+        },
+      }));
+      this.syncBattleState();
     }
 
     handleBattleInput() {
@@ -808,7 +729,8 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
         this.reelProgress += Math.max(7, 13 + rod * 1.5 - gradeHard - sizeHard);
         this.tension += 8 + gradeHard + sizeHard;
-        this.battleText.setText(`릴 감기! ${Math.min(100, Math.floor(this.reelProgress))}% · 장력 ${Math.floor(this.tension)}%`);
+        this.currentMessage = `릴 감기! ${Math.min(100, Math.floor(this.reelProgress))}% · 장력 ${Math.floor(this.tension)}%`;
+        this.currentMessageColor = "#bae6fd";
         this.updateTensionBar();
         if (this.reelProgress >= 100) this.finishCatch(true, this.battleQuality);
         if (this.tension >= 100) this.finishCatch(false, "miss");
@@ -816,12 +738,13 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     }
 
     checkBite() {
-      const center = this.pointer.x;
-      const left = this.hitZone.x - this.hitZone.width / 2;
-      const right = this.hitZone.x + this.hitZone.width / 2;
-      const perfectRange = Math.max(12, this.hitZone.width * 0.18);
-      const perfect = Math.abs(center - this.hitZone.x) <= perfectRange;
-      const success = center >= left && center <= right;
+      // All positions as ratios: -1..1 relative to bar half-width
+      const center = this.pointerXRatio;
+      const hitLeft = this.hitZoneCenterRatio - this.hitZoneWidthRatio / 2;
+      const hitRight = this.hitZoneCenterRatio + this.hitZoneWidthRatio / 2;
+      const perfectRange = Math.max(0.033, this.hitZoneWidthRatio * 0.18);
+      const perfect = Math.abs(center - this.hitZoneCenterRatio) <= perfectRange;
+      const success = center >= hitLeft && center <= hitRight;
       if (!success) { this.audio.playMiss(); return this.finishCatch(false, "miss"); }
       this.audio.playBite();
 
@@ -830,10 +753,10 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       this.pullRound = 1;
       this.battleTimer = 0;
       this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
-      this.showDirectionPrompt(this.requiredDirection, `2단계 저항 ${this.pullRound}/${this.maxPullRounds}`);
-      this.battleText.setText(perfect ? "🌟 PERFECT! 장력이 낮아졌다!" : "✅ 입질 성공! 저항을 받아내자!");
+      this.currentMessage = perfect ? "🌟 PERFECT! 장력이 낮아졌다!" : "✅ 입질 성공! 저항을 받아내자!";
+      this.currentMessageColor = perfect ? "#fde047" : "#86efac";
       this.tension += perfect ? -14 : 6;
-      this.updateTensionBar();
+      this.showDirectionPrompt(this.requiredDirection, `2단계 저항 ${this.pullRound}/${this.maxPullRounds}`);
     }
 
     getArrowTexture(direction: string) {
@@ -845,39 +768,13 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
     }
 
     showDirectionPrompt(direction: string, prefix = "방향 입력") {
-      if (this.directionArrow) {
-        this.directionArrow.setTexture(this.getArrowTexture(direction));
-        this.directionArrow.setDisplaySize(96, 96);
-        this.directionArrow.setPosition(-98, -58);
-        this.directionArrow.setVisible(true);
-        this.tweens.add({
-          targets: [this.directionArrow, this.directionLabel, this.promptHookButton].filter(Boolean),
-          alpha: 0.72,
-          duration: 160,
-          yoyo: true,
-          repeat: 1,
-        });
-      }
-
-      if (this.directionLabel) {
-        this.directionLabel.setText("+");
-        this.directionLabel.setPosition(-10, -58);
-        this.directionLabel.setVisible(true);
-      }
-
-      if (this.promptHookButton) {
-        this.promptHookButton.setDisplaySize(78, 78);
-        this.promptHookButton.setPosition(82, -58);
-        this.promptHookButton.setVisible(true);
-      }
-
-      this.battleGuide.setText(prefix);
+      this.currentGuide = prefix;
+      this.requiredDirection = direction;
+      this.updateTensionBar();
     }
 
     hideDirectionPrompt() {
-      if (this.directionArrow) this.directionArrow.setVisible(false);
-      if (this.directionLabel) this.directionLabel.setVisible(false);
-      if (this.promptHookButton) this.promptHookButton.setVisible(false);
+      this.syncBattleState();
     }
 
     formatDirection(direction: string) {
@@ -907,15 +804,17 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
           this.battleTimer = 0;
           const dirs = ["LEFT", "RIGHT", "UP", "DOWN"].filter((d) => d !== this.requiredDirection);
           this.requiredDirection = Phaser.Utils.Array.GetRandom(dirs);
+          this.currentMessage = "✅ 저항을 받아냈다! 다음 방향!";
+          this.currentMessageColor = "#86efac";
           this.showDirectionPrompt(this.requiredDirection, `2단계 저항 ${this.pullRound}/${this.maxPullRounds}`);
-          this.battleText.setText("✅ 저항을 받아냈다! 다음 방향!");
         } else {
           this.phase = "reel";
           this.battleTimer = 0;
-          this.hideDirectionPrompt();
-          this.battleGuide.setText("3단계 릴링: 낚시 버튼을 연타하되 장력이 터지지 않게!");
-          this.battleText.setText("🎣 릴링 시작!");
+          this.currentGuide = "3단계 릴링: 낚시 버튼을 연타하되 장력이 터지지 않게!";
+          this.currentMessage = "🎣 릴링 시작!";
+          this.currentMessageColor = "#fde047";
           this.tension -= 12;
+          this.hideDirectionPrompt();
         }
       } else {
         this.audio.playPullFail();
@@ -923,19 +822,36 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
           this.selectedFish.grade === "mythic" || this.selectedFish.grade === "transcend" ? 32 :
           this.selectedFish.grade === "legend" ? 28 : 24;
         this.tension += penalty;
+        this.currentMessage = "⚠️ 장력이 크게 올라간다!";
+        this.currentMessageColor = "#fca5a5";
         this.requiredDirection = Phaser.Utils.Array.GetRandom(["LEFT", "RIGHT", "UP", "DOWN"]);
         this.showDirectionPrompt(this.requiredDirection, "방향이 틀렸다!");
-        this.battleText.setText("⚠️ 장력이 크게 올라간다!");
         if (this.tension >= 100) this.finishCatch(false, "miss");
       }
       this.updateTensionBar();
     }
 
+    syncBattleState() {
+      window.dispatchEvent(new CustomEvent("battle-state", {
+        detail: {
+          phase: this.phase,
+          pointerXRatio: this.pointerXRatio,
+          hitZoneCenterRatio: this.hitZoneCenterRatio,
+          hitZoneWidthRatio: this.hitZoneWidthRatio,
+          tension: this.tension,
+          pullRound: this.pullRound,
+          maxPullRounds: this.maxPullRounds,
+          requiredDirection: this.requiredDirection,
+          guide: this.currentGuide,
+          message: this.currentMessage,
+          messageColor: this.currentMessageColor,
+        },
+      }));
+    }
+
     updateTensionBar() {
       this.tension = Phaser.Math.Clamp(this.tension, 0, 100);
-      const maxWidth = this.SX * 0.72;
-      this.tensionFill.width = maxWidth * (this.tension / 100);
-      this.tensionFill.fillColor = this.tension >= 80 ? 0xef4444 : this.tension >= 55 ? 0xfacc15 : 0x22c55e;
+      this.syncBattleState();
     }
 
     finishCatch(success: boolean, quality: "perfect" | "good" | "miss") {
@@ -968,7 +884,9 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         };
         if (bagWeight(this.saveData) + item.kg > cargoLimit(this.saveData)) {
           this.audio.playMiss();
-          this.battleText.setColor("#fca5a5").setText("MISS\n🎒 가방이 부족해서 놓쳤습니다!\n항구로 돌아가 적재량을 비우세요.");
+          window.dispatchEvent(new CustomEvent("battle-result", {
+            detail: { success: false, quality: "miss", message: "MISS\n🎒 가방이 부족해서 놓쳤습니다!\n항구로 돌아가 적재량을 비우세요.", messageColor: "#fca5a5" },
+          }));
         } else {
           this.saveData.bag = [...(this.saveData.bag || []), item];
           this.saveData.exp += item.exp;
@@ -988,9 +906,14 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
             this.audio.playCatchSuccess();
           }
 
-          this.battleText.setColor(quality === "perfect" ? "#fde047" : "#86efac").setText(
-            `${quality === "perfect" ? "PERFECT" : "SUCCESS"}\n${grade.emoji} ${item.name}\n${item.sizeRank} · ${item.cm}cm · ${item.kg}kg\n🎒 가방에 보관됨${isRecord ? "\n🏆 신기록!" : ""}`
-          );
+          window.dispatchEvent(new CustomEvent("battle-result", {
+            detail: {
+              success: true,
+              quality,
+              message: `${quality === "perfect" ? "PERFECT" : "SUCCESS"}\n${grade.emoji} ${item.name}\n${item.sizeRank} · ${item.cm}cm · ${item.kg}kg\n🎒 가방에 보관됨${isRecord ? "\n🏆 신기록!" : ""}`,
+              messageColor: quality === "perfect" ? "#fde047" : "#86efac",
+            },
+          }));
           if (item.sizeRank === "괴물급") {
             this.cameras.main.shake(320, 0.015);
             this.showEvent("🐋 괴물급 사이즈!", "#fde047");
@@ -1033,14 +956,15 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
         }
         this.targetFish = null;
         this.canFish = false;
-        this.battleText.setColor("#fca5a5").setText("MISS\n줄이 풀렸다!\n물고기가 도망갔습니다.");
+        window.dispatchEvent(new CustomEvent("battle-result", {
+          detail: { success: false, quality: "miss", message: "MISS\n줄이 풀렸다!\n물고기가 도망갔습니다.", messageColor: "#fca5a5" },
+        }));
       }
       this.time.delayedCall(1850, () => {
-        this.panel.setVisible(false);
+        window.dispatchEvent(new CustomEvent("battle-hide"));
         this.isFishing = false;
         this.isResolving = false;
         this.phase = "idle";
-        this.battleText.setText("");
       });
     }
 
@@ -1093,10 +1017,14 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
 
     update(_time: number, delta: number) {
       this.animTimer += delta;
+      this.minimapThrottle += delta;
       this.tickGameTime();
       this.handleKeyboardInput();
       this.drawHudBox();
-      this.drawMinimap();
+      if (this.minimapThrottle >= 200) {
+        this.minimapThrottle = 0;
+        this.drawMinimap();
+      }
       this.updateWaveOverlays();
       this.updateMultiplayer(delta);
 
@@ -1385,10 +1313,11 @@ export function createOceanScene(Phaser: any, cfg: OceanSceneConfig) {
       if (this.isResolving) return;
       if (this.phase === "bite") {
         const speed = gradeInfo[this.selectedFish.grade].speed;
-        const limit = this.timingBar.width / 2;
-        this.pointer.x += this.pointerDirection * speed;
-        if (this.pointer.x >= limit) { this.pointer.x = limit; this.pointerDirection = -1; }
-        if (this.pointer.x <= -limit) { this.pointer.x = -limit; this.pointerDirection = 1; }
+        // Convert pixel speed to ratio speed: bar half-width = SX * 0.36
+        this.pointerXRatio += this.pointerDirection * speed / (this.SX * 0.36);
+        if (this.pointerXRatio >= 1) { this.pointerXRatio = 1; this.pointerDirection = -1; }
+        if (this.pointerXRatio <= -1) { this.pointerXRatio = -1; this.pointerDirection = 1; }
+        this.syncBattleState();
       }
       if (this.phase === "pull") {
         this.battleTimer += delta;

@@ -17,6 +17,8 @@ import {
 } from "../gameSave";
 import { createOceanScene } from "../../engine/scenes/OceanScene";
 import { DiscoveryOverlay, type DiscoveryData, type FishDiscoveredDetail } from "../../components/ocean/DiscoveryOverlay";
+import MinimapWidget from "../../components/ocean/MinimapWidget";
+import BattleOverlay from "../../components/ocean/BattleOverlay";
 
 
 function BagOverlay({
@@ -405,6 +407,9 @@ function OceanGame() {
           }}
         />
       )}
+
+      <MinimapWidget />
+      <BattleOverlay />
 
       {discovery && (
         <DiscoveryOverlay
